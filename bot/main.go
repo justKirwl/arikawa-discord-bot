@@ -51,6 +51,11 @@ func normalizeToken(raw string) string {
 	token := strings.TrimSpace(raw)
 	token = strings.Trim(token, `"'`)
 	token = strings.TrimSpace(token)
+	if token == "" || token == "Bot" {
+		return ""
+	}
 	token = strings.TrimPrefix(token, "Bot ")
+	token = strings.TrimSpace(token)
+	token = strings.Trim(token, `"'`)
 	return strings.TrimSpace(token)
 }
