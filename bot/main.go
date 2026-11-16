@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -39,6 +40,16 @@ func main() {
 		return
 	}
 	defer dg.Close()
+
+	// Open returns before READY is processed, so State.User can still be nil.
+	deadline := time.Now().Add(30 * time.Second)
+	for dg.State.User == nil {
+		if time.Now().After(deadline) {
+			fmt.Println("error: Discord session is not ready")
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
 	// Регистрируем команду /ping в Discord API
 	cmd := &discordgo.ApplicationCommand{
