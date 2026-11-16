@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package roomd.v1;
+
+import "media/v1/media.proto";
+
+// RoomService is the control-plane API used by the Go bot.
+//
+// roomd owns realtime room state only: it never talks to Discord and never
+// interprets guild/channel/user ids beyond opaque strings supplied by the bot.
+service RoomService {
+  // Creates an empty room and returns its opaque id.
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+
+  // Closes the room, disconnects its clients and terminates every
+  // StreamRoomEvents subscription with a RoomClosed event.
+  rpc CloseRoom(CloseRoomRequest) returns (CloseRoomResponse);
+
+  // Returns a consistent snapshot of the room state.
+  rpc GetRoomState(GetRoomStateRequest) returns (GetRoomStateResponse);
+
+  // Replaces the current media item. Playback is reset to position 0 and
+  // paused; the host starts it explicitly from the player.
+  rpc SetMedia(SetMediaRequest) returns (SetMediaResponse);
+
+  // Streams room lifecycle events to the bot. At most one stream per room.
+  rpc StreamRoomEvents(StreamRoomEventsRequest) returns (stream RoomEvent);
+}
+
+// Role of a participant inside a room.
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_HOST = 1;
+  ROLE_VIEWER = 2;
+}
+
+message Participant {
+  string user_id = 1;
+  Role role = 2;
+  // Unix epoch milliseconds, roomd clock.
+  int64 joined_at_server_ms = 3;
+}
+
+// Playback state shared by every participant of a room.
+//
+// `position_ms` is the playback position measured at `updated_at_server_ms`.
+// Clients extrapolate it while `playing` is true; see docs/protocol.md.
+message RoomState {
+  string room_id = 1;
+  // Unset while the room has no media queued.
+  media.v1.MediaRef media_ref = 2;
+  int64 position_ms = 3;
+  bool playing = 4;
+  // Unix epoch milliseconds, roomd clock. Bumped together with `version`.
+  int64 updated_at_server_ms = 5;
+  // Monotonically increasing, starts at 1. Bumped on every accepted mutation.
+  uint64 version = 6;
+  repeated Participant participants = 7;
+}
+
+message CreateRoomRequest {
+  // Discord snowflakes, opaque to roomd.
+  string guild_id = 1;
+  string channel_id = 2;
+  string host_user_id = 3;
+}
+
+message CreateRoomResponse {
+  // Opaque room id, currently a UUIDv7.
+  string room_id = 1;
+}
+
+message CloseRoomRequest {
+  string room_id = 1;
+}
+
+message CloseRoomResponse {}
+
+message GetRoomStateRequest {
+  string room_id = 1;
+}
+
+message GetRoomStateResponse {
+  RoomState state = 1;
+}
+
+message SetMediaRequest {
+  string room_id = 1;
+  media.v1.MediaRef media_ref = 2;
+}
+
+message SetMediaResponse {
+  RoomState state = 1;
+}
+
+message StreamRoomEventsRequest {
+  string room_id = 1;
+}
+
+// Lifecycle event delivered to the bot. `sequence` is per-room and strictly
+// increasing, so the bot can detect dropped events and re-subscribe.
+message RoomEvent {
+  string room_id = 1;
+  uint64 sequence = 2;
+  // Unix epoch milliseconds, roomd clock.
+  int64 server_ts_ms = 3;
+
+  oneof event {
+    ParticipantJoined participant_joined = 10;
+    ParticipantLeft participant_left = 11;
+    MediaEnded media_ended = 12;
+    RoomClosed room_closed = 13;
+  }
+}
+
+message ParticipantJoined {
+  Participant participant = 1;
+}
+
+message ParticipantLeft {
+  string user_id = 1;
+}
+
+// Emitted when playback reaches the end of the current media item.
+message MediaEnded {
+  string media_id = 1;
+  string room_id = 2;
+}
+
+message RoomClosed {
+  // Machine-readable reason, e.g. "closed_by_host" or "idle_timeout".
+  string reason = 1;
+}

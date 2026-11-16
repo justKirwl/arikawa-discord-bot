@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package media.v1;
+
+// Kind of media behind a MediaRef.
+enum MediaKind {
+  MEDIA_KIND_UNSPECIFIED = 0;
+  // A single progressive file (mp4/webm) served over HTTP.
+  MEDIA_KIND_FILE = 1;
+  // An HLS playlist (m3u8) served over HTTP.
+  MEDIA_KIND_HLS = 2;
+}
+
+// Reference to playable media. Produced by mediad and embedded into room
+// state; the browser fetches `url` directly, never through the Go bot.
+message MediaRef {
+  // Opaque media id assigned by mediad.
+  string media_id = 1;
+  MediaKind kind = 2;
+  // HTTPS URL of the manifest (HLS) or file. May be a signed URL with a TTL.
+  string url = 3;
+  // Total duration of the media item, 0 when unknown.
+  int64 duration_ms = 4;
+  repeated AudioTrack audio_tracks = 5;
+  repeated SubtitleTrack subtitle_tracks = 6;
+  // Optional poster URL for the player UI.
+  string poster_url = 7;
+}
+
+message AudioTrack {
+  // Opaque track id used by the player when switching tracks.
+  string id = 1;
+  // BCP-47 language tag, e.g. "uk" or "en".
+  string language = 2;
+  // Human-readable label shown in the player UI.
+  string label = 3;
+  bool default = 4;
+}
+
+message SubtitleTrack {
+  string id = 1;
+  string language = 2;
+  string label = 3;
+  // WebVTT file URL. May be a signed URL with a TTL.
+  string url = 4;
+  bool default = 5;
+}
+
+enum MediaStatus {
+  MEDIA_STATUS_UNSPECIFIED = 0;
+  // Upload accepted, bytes are still arriving.
+  MEDIA_STATUS_UPLOADING = 1;
+  // Upload finished, waiting for a transcode worker.
+  MEDIA_STATUS_QUEUED = 2;
+  MEDIA_STATUS_TRANSCODING = 3;
+  MEDIA_STATUS_READY = 4;
+  MEDIA_STATUS_FAILED = 5;
+  MEDIA_STATUS_DELETED = 6;
+}
+
+// MediaService is the control-plane API used by the Go bot.
+service MediaService {
+  rpc GetMediaStatus(GetMediaStatusRequest) returns (GetMediaStatusResponse);
+
+  // Returns a ready-to-play MediaRef; fails with FAILED_PRECONDITION while the
+  // media item is not READY.
+  rpc GetPlaybackRef(GetPlaybackRefRequest) returns (GetPlaybackRefResponse);
+
+  // Deletes the media item, its derived artifacts and its stored bytes.
+  rpc DeleteMedia(DeleteMediaRequest) returns (DeleteMediaResponse);
+
+  // Streams processing events. `media_id` filters the stream; an empty value
+  // subscribes to every media item of the deployment.
+  rpc StreamMediaEvents(StreamMediaEventsRequest) returns (stream MediaEvent);
+}
+
+message GetMediaStatusRequest {
+  string media_id = 1;
+}
+
+message GetMediaStatusResponse {
+  string media_id = 1;
+  MediaStatus status = 2;
+  // 0-100, meaningful for UPLOADING/TRANSCODING.
+  uint32 progress_percent = 3;
+  // Human-readable failure reason for FAILED.
+  string error_message = 4;
+}
+
+message GetPlaybackRefRequest {
+  string media_id = 1;
+}
+
+message GetPlaybackRefResponse {
+  MediaRef media_ref = 1;
+}
+
+message DeleteMediaRequest {
+  string media_id = 1;
+}
+
+message DeleteMediaResponse {}
+
+message StreamMediaEventsRequest {
+  string media_id = 1;
+}
+
+message MediaEvent {
+  string media_id = 1;
+  // Unix epoch milliseconds, mediad clock.
+  int64 server_ts_ms = 2;
+
+  oneof event {
+    TranscodeProgress transcode_progress = 10;
+    MediaReady media_ready = 11;
+    MediaFailed media_failed = 12;
+  }
+}
+
+message TranscodeProgress {
+  uint32 progress_percent = 1;
+  // Pipeline stage, e.g. "probe", "transcode", "thumbnails".
+  string stage = 2;
+}
+
+message MediaReady {
+  MediaRef media_ref = 1;
+}
+
+message MediaFailed {
+  // Machine-readable error code, e.g. "unsupported_codec".
+  string code = 1;
+  string message = 2;
+}
