@@ -9,8 +9,10 @@ pub mod grpc;
 pub mod http;
 pub mod pb;
 pub mod shutdown;
+pub mod state;
 pub mod telemetry;
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -20,6 +22,7 @@ use tracing::{info, warn};
 
 use crate::config::Config;
 use crate::http::AppState;
+use crate::state::RoomStore;
 
 /// How long in-flight connections get to finish after a shutdown signal.
 pub const SHUTDOWN_GRACE: Duration = Duration::from_secs(30);
@@ -44,8 +47,11 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     state.mark_ready();
 
+    let store = Arc::new(RoomStore::default());
+
     let mut grpc_task = tokio::spawn(grpc::serve(
         grpc_listener,
+        store,
         shutdown::wait(shutdown_rx.clone()),
     ));
     let mut http_task = tokio::spawn(http::serve(
