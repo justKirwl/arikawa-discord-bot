@@ -48,12 +48,20 @@ func main() {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	cmd := &discordgo.ApplicationCommand{
+	cmds := []*discordgo.ApplicationCommand{{
 		Name:        "ping",
 		Description: "Ping bot.",
-	}
+	},
+		{
+			Name:        "watchlist",
+			Description: "Watchlist here.",
+		},
+		{
+			Name:        "queue",
+			Description: "Queue of downloading here.",
+		}}
 
-	createdCmd, err := dg.ApplicationCommandCreate(dg.State.User.ID, guildID, cmd)
+	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, guildID, cmds)
 	if err != nil {
 		fmt.Println("error while creating slash command:", err)
 		return
@@ -64,8 +72,6 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGTERM, os.Interrupt)
 	<-sc
-
-	_ = dg.ApplicationCommandDelete(dg.State.User.ID, guildID, createdCmd.ID)
 }
 
 func interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
