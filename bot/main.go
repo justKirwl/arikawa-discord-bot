@@ -4,19 +4,20 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 func main() {
-	token := os.Getenv("DISCORD_KEY")
+	token := normalizeToken(os.Getenv("DISCORD_KEY"))
 	if token == "" {
 		fmt.Println("no given DISCORD_KEY")
 		return
 	}
 
-	dg, err := discordgo.New("Bot" + token)
+	dg, err := discordgo.New("Bot " + token)
 	if err != nil {
 		fmt.Println("error while creating a session:", err)
 		return
@@ -42,4 +43,14 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Content == "!ping" {
 		_, _ = s.ChannelMessageSend(m.ChannelID, "Pong!")
 	}
+}
+
+// normalizeToken tolerates the usual .env mistakes: surrounding whitespace,
+// CRLF, quotes and a duplicated "Bot " prefix.
+func normalizeToken(raw string) string {
+	token := strings.TrimSpace(raw)
+	token = strings.Trim(token, `"'`)
+	token = strings.TrimSpace(token)
+	token = strings.TrimPrefix(token, "Bot ")
+	return strings.TrimSpace(token)
 }
