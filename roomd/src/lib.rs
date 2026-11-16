@@ -4,6 +4,7 @@
 //! deliberately unaware of Discord: callers pass opaque `guild_id`,
 //! `channel_id`, `user_id` and `media_id` values.
 
+pub mod auth;
 pub mod config;
 pub mod grpc;
 pub mod http;
@@ -11,6 +12,7 @@ pub mod pb;
 pub mod shutdown;
 pub mod state;
 pub mod telemetry;
+pub mod ws;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,6 +22,7 @@ use tokio::net::TcpListener;
 use tokio::sync::watch;
 use tracing::{info, warn};
 
+use crate::auth::JwtAuth;
 use crate::config::Config;
 use crate::http::AppState;
 use crate::state::RoomStore;
@@ -29,7 +32,22 @@ pub const SHUTDOWN_GRACE: Duration = Duration::from_secs(30);
 
 /// Binds both listeners, serves gRPC and HTTP, and drains on shutdown.
 pub async fn run(config: Config) -> anyhow::Result<()> {
-    let state = AppState::new();
+    let store = Arc::new(RoomStore::default());
+    let jwt = match config.jwt_public_key.as_deref() {
+        Some(public_key) => Some(Arc::new(
+            JwtAuth::new(
+                public_key,
+                config.jwt_issuer.clone(),
+                config.jwt_key_id.clone(),
+            )
+            .context("invalid ROOMD_JWT_PUBLIC_KEY")?,
+        )),
+        None => {
+            warn!("ROOMD_JWT_PUBLIC_KEY is not set; /ws will reject every connection");
+            None
+        }
+    };
+    let state = AppState::with_services(store.clone(), jwt);
 
     let grpc_listener = TcpListener::bind(config.grpc_addr)
         .await
@@ -46,8 +64,6 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
 
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     state.mark_ready();
-
-    let store = Arc::new(RoomStore::default());
 
     let mut grpc_task = tokio::spawn(grpc::serve(
         grpc_listener,

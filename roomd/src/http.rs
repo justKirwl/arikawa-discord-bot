@@ -1,4 +1,4 @@
-//! HTTP listener: liveness/readiness probes now, WebSocket (`/ws`) in S3.3.
+//! HTTP listener: liveness/readiness probes and the WebSocket endpoint.
 
 use std::future::Future;
 use std::sync::Arc;
@@ -14,10 +14,15 @@ use serde::Serialize;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 
+use crate::auth::JwtAuth;
+use crate::state::RoomStore;
+
 #[derive(Debug, Clone)]
 pub struct AppState {
     started_at: Instant,
     ready: Arc<AtomicBool>,
+    store: Arc<RoomStore>,
+    jwt: Option<Arc<JwtAuth>>,
 }
 
 impl Default for AppState {
@@ -27,11 +32,26 @@ impl Default for AppState {
 }
 
 impl AppState {
+    /// Test/health-only state without a configured JWT key.
     pub fn new() -> Self {
+        Self::with_services(Arc::new(RoomStore::default()), None)
+    }
+
+    pub fn with_services(store: Arc<RoomStore>, jwt: Option<Arc<JwtAuth>>) -> Self {
         Self {
             started_at: Instant::now(),
             ready: Arc::new(AtomicBool::new(false)),
+            store,
+            jwt,
         }
+    }
+
+    pub fn store(&self) -> &Arc<RoomStore> {
+        &self.store
+    }
+
+    pub fn jwt(&self) -> Option<&Arc<JwtAuth>> {
+        self.jwt.as_ref()
     }
 
     /// Readiness flips to true once both listeners are bound.
@@ -69,6 +89,7 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
+        .route("/ws", get(crate::ws::handler))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }

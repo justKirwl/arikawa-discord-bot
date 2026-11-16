@@ -7,10 +7,14 @@ pub const ENV_GRPC_ADDR: &str = "ROOMD_GRPC_ADDR";
 pub const ENV_HTTP_ADDR: &str = "ROOMD_HTTP_ADDR";
 pub const ENV_LOG_FORMAT: &str = "ROOMD_LOG_FORMAT";
 pub const ENV_LOG_FILTER: &str = "ROOMD_LOG_FILTER";
+pub const ENV_JWT_PUBLIC_KEY: &str = "ROOMD_JWT_PUBLIC_KEY";
+pub const ENV_JWT_ISSUER: &str = "ROOMD_JWT_ISSUER";
+pub const ENV_JWT_KEY_ID: &str = "ROOMD_JWT_KEY_ID";
 
 pub const DEFAULT_GRPC_ADDR: &str = "0.0.0.0:50051";
 pub const DEFAULT_HTTP_ADDR: &str = "0.0.0.0:8080";
 pub const DEFAULT_LOG_FILTER: &str = "info";
+pub const DEFAULT_JWT_ISSUER: &str = "cinema-bot";
 
 /// Runtime configuration, read from `ROOMD_*` environment variables.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,6 +26,14 @@ pub struct Config {
     pub log_format: LogFormat,
     /// Fallback filter used when `RUST_LOG` is not set.
     pub log_filter: String,
+    /// Base64url Ed25519 public key used to verify room tokens.
+    ///
+    /// `/ws` rejects connections while this is unset.
+    pub jwt_public_key: Option<String>,
+    /// Required `iss` claim; `None` disables the issuer check.
+    pub jwt_issuer: Option<String>,
+    /// Required JWT header `kid`; `None` accepts any key id.
+    pub jwt_key_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,11 +89,28 @@ impl Config {
             .filter(|value| !value.is_empty())
             .unwrap_or_else(|| DEFAULT_LOG_FILTER.to_owned());
 
+        let jwt_public_key = lookup(ENV_JWT_PUBLIC_KEY)
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+        let jwt_issuer = match lookup(ENV_JWT_ISSUER) {
+            None => Some(DEFAULT_JWT_ISSUER.to_owned()),
+            Some(value) => {
+                let value = value.trim().to_owned();
+                (!value.is_empty()).then_some(value)
+            }
+        };
+        let jwt_key_id = lookup(ENV_JWT_KEY_ID)
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+
         Ok(Self {
             grpc_addr,
             http_addr,
             log_format,
             log_filter,
+            jwt_public_key,
+            jwt_issuer,
+            jwt_key_id,
         })
     }
 }
@@ -114,6 +143,9 @@ mod tests {
         assert_eq!(config.http_addr, "0.0.0.0:8080".parse().unwrap());
         assert_eq!(config.log_format, LogFormat::Pretty);
         assert_eq!(config.log_filter, DEFAULT_LOG_FILTER);
+        assert_eq!(config.jwt_public_key, None);
+        assert_eq!(config.jwt_issuer.as_deref(), Some(DEFAULT_JWT_ISSUER));
+        assert_eq!(config.jwt_key_id, None);
     }
 
     #[test]
@@ -123,6 +155,9 @@ mod tests {
             (ENV_HTTP_ADDR, "127.0.0.1:7001"),
             (ENV_LOG_FORMAT, " JSON "),
             (ENV_LOG_FILTER, "warn,roomd=trace"),
+            (ENV_JWT_PUBLIC_KEY, "  key  "),
+            (ENV_JWT_ISSUER, "cinema-bot-test"),
+            (ENV_JWT_KEY_ID, " k-1 "),
         ]))
         .expect("overrides should be valid");
 
@@ -130,6 +165,17 @@ mod tests {
         assert_eq!(config.http_addr, "127.0.0.1:7001".parse().unwrap());
         assert_eq!(config.log_format, LogFormat::Json);
         assert_eq!(config.log_filter, "warn,roomd=trace");
+        assert_eq!(config.jwt_public_key.as_deref(), Some("key"));
+        assert_eq!(config.jwt_issuer.as_deref(), Some("cinema-bot-test"));
+        assert_eq!(config.jwt_key_id.as_deref(), Some("k-1"));
+    }
+
+    #[test]
+    fn empty_jwt_issuer_disables_the_claim_check() {
+        let config =
+            Config::from_lookup(lookup(&[(ENV_JWT_ISSUER, " ")])).expect("empty issuer is valid");
+
+        assert_eq!(config.jwt_issuer, None);
     }
 
     #[test]
