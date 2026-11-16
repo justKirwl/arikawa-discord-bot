@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func handlePing(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func HandlePing(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -18,7 +18,7 @@ func handlePing(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 }
 
-func handleWatchList(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func HandleWatchList(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -30,7 +30,7 @@ func handleWatchList(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 }
 
-func handleQueue(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func HandleQueue(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{

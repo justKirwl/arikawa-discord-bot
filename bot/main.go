@@ -1,6 +1,7 @@
 package main
 
 import (
+	"arikawa-discord/bot/handlers"
 	"fmt"
 	"os"
 	"os/signal"
@@ -74,7 +75,7 @@ func interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	cmd := i.ApplicationCommandData().Name
 
-	if handler, ok := commandHandlers[cmd]; ok {
+	if handler, ok := handlers.CommandHandlers[cmd]; ok {
 		handler(s, i)
 	} else {
 		fmt.Println("Unknown slash command:", cmd)
