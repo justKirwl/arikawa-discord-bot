@@ -1,0 +1,14 @@
+services:
+  roomd:
+    build: .
+    image: roomd:dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ROOMD_GRPC_ADDR: 0.0.0.0:50051
+      ROOMD_HTTP_ADDR: 0.0.0.0:8080
+      ROOMD_LOG_FORMAT: json
+    ports:
+      - "50051:50051"
+      - "8080:8080"
