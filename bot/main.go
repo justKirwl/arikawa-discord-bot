@@ -72,16 +72,12 @@ func interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	if i.ApplicationCommandData().Name == "ping" {
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Pong!",
-			},
-		})
-		if err != nil {
-			fmt.Println("error responding to interaction:", err)
-		}
+	cmd := i.ApplicationCommandData().Name
+
+	if handler, ok := commandHandlers[cmd]; ok {
+		handler(s, i)
+	} else {
+		fmt.Println("Unknown slash command:", cmd)
 	}
 }
 
