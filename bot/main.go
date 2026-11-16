@@ -17,14 +17,22 @@ func main() {
 		return
 	}
 
+	// Укажите ID сервера в .env для мгновенного появления команды.
+	// Если оставить пустым, команда станет глобальной (появится в течение часа).
+	guildID := strings.TrimSpace(os.Getenv("GUILD_ID"))
+
 	dg, err := discordgo.New("Bot " + token)
 	if err != nil {
 		fmt.Println("error while creating a session:", err)
 		return
 	}
 
-	dg.AddHandler(messageCreate)
-	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentMessageContent
+	// Регистрируем обработчик slash-команд
+	dg.AddHandler(interactionCreate)
+
+	// Для slash-команд привилегированный IntentMessageContent больше не нужен
+	dg.Identify.Intents = discordgo.IntentsGuilds
+
 	err = dg.Open()
 	if err != nil {
 		fmt.Println("error while opening discord websocket:", err)
@@ -32,16 +40,44 @@ func main() {
 	}
 	defer dg.Close()
 
+	// Регистрируем команду /ping в Discord API
+	cmd := &discordgo.ApplicationCommand{
+		Name:        "ping",
+		Description: "Проверяет отклик бота",
+	}
+
+	createdCmd, err := dg.ApplicationCommandCreate(dg.State.User.ID, guildID, cmd)
+	if err != nil {
+		fmt.Println("error while creating slash command:", err)
+		return
+	}
+
 	fmt.Println("Bot is running, press CTRL+C to exit")
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGTERM, os.Interrupt)
 	<-sc
+
+	// Удаляем команду при выключении, чтобы не оставлять дубликаты при тестах
+	_ = dg.ApplicationCommandDelete(dg.State.User.ID, guildID, createdCmd.ID)
 }
 
-func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	if m.Content == "!ping" {
-		_, _ = s.ChannelMessageSend(m.ChannelID, "Pong!")
+func interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// Игнорируем всё, кроме вызова slash-команд
+	if i.Type != discordgo.InteractionApplicationCommand {
+		return
+	}
+
+	if i.ApplicationCommandData().Name == "ping" {
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Pong!",
+			},
+		})
+		if err != nil {
+			fmt.Println("error responding to interaction:", err)
+		}
 	}
 }
 
