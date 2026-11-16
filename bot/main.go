@@ -18,8 +18,6 @@ func main() {
 		return
 	}
 
-	// Укажите ID сервера в .env для мгновенного появления команды.
-	// Если оставить пустым, команда станет глобальной (появится в течение часа).
 	guildID := strings.TrimSpace(os.Getenv("GUILD_ID"))
 
 	dg, err := discordgo.New("Bot " + token)
@@ -28,11 +26,10 @@ func main() {
 		return
 	}
 
-	// Регистрируем обработчик slash-команд
 	dg.AddHandler(interactionCreate)
+	dg.AddHandler(textInteractionCreate)
 
-	// Для slash-команд привилегированный IntentMessageContent больше не нужен
-	dg.Identify.Intents = discordgo.IntentsGuilds
+	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentMessageContent
 
 	err = dg.Open()
 	if err != nil {
@@ -41,7 +38,6 @@ func main() {
 	}
 	defer dg.Close()
 
-	// Open returns before READY is processed, so State.User can still be nil.
 	deadline := time.Now().Add(30 * time.Second)
 	for dg.State.User == nil {
 		if time.Now().After(deadline) {
@@ -51,10 +47,9 @@ func main() {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	// Регистрируем команду /ping в Discord API
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "ping",
-		Description: "Проверяет отклик бота",
+		Description: "Ping bot.",
 	}
 
 	createdCmd, err := dg.ApplicationCommandCreate(dg.State.User.ID, guildID, cmd)
@@ -69,12 +64,10 @@ func main() {
 	signal.Notify(sc, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
-	// Удаляем команду при выключении, чтобы не оставлять дубликаты при тестах
 	_ = dg.ApplicationCommandDelete(dg.State.User.ID, guildID, createdCmd.ID)
 }
 
 func interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// Игнорируем всё, кроме вызова slash-команд
 	if i.Type != discordgo.InteractionApplicationCommand {
 		return
 	}
@@ -92,17 +85,23 @@ func interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 }
 
-// normalizeToken tolerates the usual .env mistakes: surrounding whitespace,
-// CRLF, quotes and a duplicated "Bot " prefix.
+func textInteractionCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	if m.Type != discordgo.MessageTypeDefault ||
+		m.Content == "" || !strings.HasPrefix(m.Content, "!") {
+		return
+	}
+
+	if m.Content == "!ping" {
+		s.ChannelMessageSendReply(m.GuildID, "Pong!", m.Reference())
+	}
+}
+
 func normalizeToken(raw string) string {
-	token := strings.TrimSpace(raw)
-	token = strings.Trim(token, `"'`)
+	token := strings.Trim(raw, `"'`)
 	token = strings.TrimSpace(token)
 	if token == "" || token == "Bot" {
 		return ""
 	}
 	token = strings.TrimPrefix(token, "Bot ")
-	token = strings.TrimSpace(token)
-	token = strings.Trim(token, `"'`)
-	return strings.TrimSpace(token)
+	return token
 }
