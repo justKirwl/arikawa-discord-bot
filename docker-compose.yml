@@ -1,0 +1,28 @@
+name: absolutecinema
+
+services:
+  roomd:
+    build:
+      context: ./roomd
+    image: roomd:dev
+    restart: unless-stopped
+    environment:
+      ROOMD_GRPC_ADDR: 0.0.0.0:50051
+      ROOMD_HTTP_ADDR: 0.0.0.0:8080
+      ROOMD_LOG_FORMAT: json
+      RUST_LOG: info
+    ports:
+      - "${ROOMD_HTTP_PORT:-8080}:8080"
+      - "${ROOMD_GRPC_PORT:-50051}:50051"
+    stop_grace_period: 35s
+
+  bot:
+    build:
+      context: .
+      dockerfile: bot/Dockerfile
+    image: cinema-bot:dev
+    restart: unless-stopped
+    depends_on:
+      - roomd
+    env_file:
+      - .env

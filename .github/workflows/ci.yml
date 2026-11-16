@@ -5,10 +5,16 @@ on:
     branches: [main]
     paths:
       - "roomd/**"
+      - "bot/**"
+      - "go.mod"
+      - "go.sum"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "roomd/**"
+      - "bot/**"
+      - "go.mod"
+      - "go.sum"
       - ".github/workflows/ci.yml"
 
 env:
@@ -43,3 +49,19 @@ jobs:
 
       - name: Build release
         run: cargo build --release --locked
+
+  bot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
