@@ -46,6 +46,7 @@ impl From<StoreError> for Status {
         match error {
             StoreError::NotFound(room_id) => Status::not_found(format!("room {room_id} not found")),
             StoreError::InvalidArgument(message) => Status::invalid_argument(message),
+            StoreError::NoMedia => Status::failed_precondition("media is not set in this room"),
         }
     }
 }

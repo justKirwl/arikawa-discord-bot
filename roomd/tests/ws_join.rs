@@ -1,4 +1,4 @@
-//! WebSocket `join` integration tests (S3.3).
+//! WebSocket integration tests: `join` (S3.3) and playback state (S3.4).
 
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -133,6 +133,30 @@ fn create_room(store: &RoomStore) -> String {
         .create("guild-1", "channel-1", "42")
         .expect("room created")
         .room_id
+}
+
+fn set_media(store: &RoomStore, room_id: &str) {
+    store
+        .set_media(
+            room_id,
+            MediaRef {
+                media_id: "media-1".to_owned(),
+                kind: MediaKind::Hls as i32,
+                url: "https://cdn.example/master.m3u8".to_owned(),
+                duration_ms: 7_200_000,
+                ..MediaRef::default()
+            },
+        )
+        .expect("media set");
+}
+
+async fn join(socket: &mut Client, room_id: &str, role: &str) -> Value {
+    send(
+        socket,
+        json!({ "type": "join", "token": token(SEED, room_id, role, 120) }),
+    )
+    .await;
+    recv(socket).await
 }
 
 #[tokio::test]
@@ -377,4 +401,164 @@ async fn commands_before_join_are_rejected() {
     let error = recv(&mut socket).await;
     assert_eq!(error["code"], "invalid_token");
     assert_eq!(recv_close(&mut socket).await, 1008);
+}
+
+#[tokio::test]
+async fn host_play_pause_and_seek_bump_version() {
+    let store = Arc::new(RoomStore::default());
+    let room_id = create_room(&store);
+    set_media(&store, &room_id);
+    let addr = start_server(store).await;
+    let mut socket = connect(addr).await;
+
+    let joined = join(&mut socket, &room_id, "host").await;
+    assert_eq!(joined["type"], "state");
+    assert_eq!(joined["version"], 2);
+    assert_eq!(joined["playing"], false);
+
+    send(&mut socket, json!({ "type": "play", "request_id": 11 })).await;
+    let played = recv(&mut socket).await;
+    assert_eq!(played["type"], "state");
+    assert_eq!(played["version"], 3);
+    assert_eq!(played["playing"], true);
+    let played_position = played["position_ms"].as_i64().expect("position");
+
+    send(&mut socket, json!({ "type": "pause", "request_id": 12 })).await;
+    let paused = recv(&mut socket).await;
+    assert_eq!(paused["type"], "state");
+    assert_eq!(paused["version"], 4);
+    assert_eq!(paused["playing"], false);
+    assert!(paused["position_ms"].as_i64().expect("position") >= played_position);
+
+    send(
+        &mut socket,
+        json!({ "type": "seek", "position_ms": 60_000, "request_id": 13 }),
+    )
+    .await;
+    let seeked = recv(&mut socket).await;
+    assert_eq!(seeked["type"], "state");
+    assert_eq!(seeked["version"], 5);
+    assert_eq!(seeked["position_ms"], 60_000);
+    assert_eq!(seeked["playing"], false);
+
+    send(&mut socket, json!({ "type": "seek", "position_ms": -500 })).await;
+    let clamped_low = recv(&mut socket).await;
+    assert_eq!(clamped_low["version"], 6);
+    assert_eq!(clamped_low["position_ms"], 0);
+
+    send(
+        &mut socket,
+        json!({ "type": "seek", "position_ms": 7_200_001 }),
+    )
+    .await;
+    let clamped_high = recv(&mut socket).await;
+    assert_eq!(clamped_high["version"], 7);
+    assert_eq!(clamped_high["position_ms"], 7_200_000);
+
+    send(&mut socket, json!({ "type": "play" })).await;
+    let playing_again = recv(&mut socket).await;
+    assert_eq!(playing_again["version"], 8);
+    assert_eq!(playing_again["playing"], true);
+    assert!(playing_again["server_ts"].as_i64().expect("server_ts") > 0);
+
+    send(&mut socket, json!({ "type": "seek", "position_ms": 1_000 })).await;
+    let seeked_while_playing = recv(&mut socket).await;
+    assert_eq!(seeked_while_playing["version"], 9);
+    assert_eq!(seeked_while_playing["playing"], true);
+    assert_eq!(seeked_while_playing["position_ms"], 1_000);
+}
+
+#[tokio::test]
+async fn viewer_playback_is_rejected_with_not_host() {
+    let store = Arc::new(RoomStore::default());
+    let room_id = create_room(&store);
+    set_media(&store, &room_id);
+    let addr = start_server(store).await;
+    let mut socket = connect(addr).await;
+
+    assert_eq!(join(&mut socket, &room_id, "viewer").await["version"], 2);
+
+    for (request_id, message) in [
+        (21, json!({ "type": "play", "request_id": 21 })),
+        (22, json!({ "type": "pause", "request_id": 22 })),
+        (
+            23,
+            json!({ "type": "seek", "position_ms": 100, "request_id": 23 }),
+        ),
+    ] {
+        send(&mut socket, message).await;
+        let error = recv(&mut socket).await;
+        assert_eq!(error["type"], "error");
+        assert_eq!(error["code"], "not_host");
+        assert_eq!(error["request_id"], request_id);
+    }
+
+    send(&mut socket, json!({ "type": "ping", "client_ts": 1 })).await;
+    assert_eq!(recv(&mut socket).await["type"], "pong");
+}
+
+#[tokio::test]
+async fn playback_without_media_is_rejected() {
+    let store = Arc::new(RoomStore::default());
+    let room_id = create_room(&store);
+    let addr = start_server(store.clone()).await;
+    let mut socket = connect(addr).await;
+
+    assert_eq!(join(&mut socket, &room_id, "host").await["version"], 1);
+
+    for message in [
+        json!({ "type": "play" }),
+        json!({ "type": "pause" }),
+        json!({ "type": "seek", "position_ms": 5 }),
+    ] {
+        send(&mut socket, message).await;
+        let error = recv(&mut socket).await;
+        assert_eq!(error["type"], "error");
+        assert_eq!(error["code"], "no_media");
+    }
+
+    assert_eq!(store.get(&room_id).expect("room").version, 1);
+}
+
+#[tokio::test]
+async fn seek_requires_an_integer_position() {
+    let store = Arc::new(RoomStore::default());
+    let room_id = create_room(&store);
+    set_media(&store, &room_id);
+    let addr = start_server(store.clone()).await;
+    let mut socket = connect(addr).await;
+
+    assert_eq!(join(&mut socket, &room_id, "host").await["version"], 2);
+
+    for message in [
+        json!({ "type": "seek" }),
+        json!({ "type": "seek", "position_ms": "120000" }),
+        json!({ "type": "seek", "position_ms": 1.5 }),
+    ] {
+        send(&mut socket, message).await;
+        let error = recv(&mut socket).await;
+        assert_eq!(error["type"], "error");
+        assert_eq!(error["code"], "bad_message");
+    }
+
+    assert_eq!(store.get(&room_id).expect("room").version, 2);
+}
+
+#[tokio::test]
+async fn playback_after_room_close_reports_room_closed() {
+    let store = Arc::new(RoomStore::default());
+    let room_id = create_room(&store);
+    set_media(&store, &room_id);
+    let addr = start_server(store.clone()).await;
+    let mut socket = connect(addr).await;
+
+    assert_eq!(join(&mut socket, &room_id, "host").await["type"], "state");
+
+    store.close(&room_id).expect("room closed");
+
+    send(&mut socket, json!({ "type": "play" })).await;
+    let error = recv(&mut socket).await;
+    assert_eq!(error["type"], "error");
+    assert_eq!(error["code"], "room_closed");
+    assert_eq!(recv_close(&mut socket).await, 1000);
 }

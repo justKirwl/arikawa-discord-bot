@@ -27,6 +27,8 @@ pub enum StoreError {
     NotFound(String),
     #[error("{0}")]
     InvalidArgument(String),
+    #[error("media is not set in this room")]
+    NoMedia,
 }
 
 #[derive(Debug, Clone)]
@@ -48,6 +50,34 @@ impl Room {
             updated_at_server_ms: self.updated_at_server_ms,
             version: self.version,
         }
+    }
+
+    fn position_at(&self, now: i64) -> i64 {
+        let position_ms = if self.playing {
+            self.position_ms
+                .saturating_add(now.saturating_sub(self.updated_at_server_ms).max(0))
+        } else {
+            self.position_ms
+        };
+
+        match self.media_ref.as_ref() {
+            Some(media) => clamp_position(position_ms, media.duration_ms),
+            None => position_ms,
+        }
+    }
+
+    /// Records an accepted mutation: every mutation bumps the version.
+    fn commit(&mut self, now: i64) {
+        self.updated_at_server_ms = now;
+        self.version = self.version.saturating_add(1);
+    }
+
+    fn require_media(&self) -> Result<(), StoreError> {
+        if self.media_ref.is_none() {
+            return Err(StoreError::NoMedia);
+        }
+
+        Ok(())
     }
 }
 
@@ -107,6 +137,74 @@ impl RoomStore {
         room.playing = false;
         room.updated_at_server_ms = now_ms();
         room.version += 1;
+
+        Ok(room.snapshot(room_id))
+    }
+
+    /// Starts or resumes playback. The position is materialized at the moment
+    /// of the call, so a paused room resumes from where it stopped.
+    pub fn play(&self, room_id: &str) -> Result<RoomSnapshot, StoreError> {
+        self.play_at(room_id, now_ms())
+    }
+
+    /// Pauses playback, keeping the materialized position.
+    pub fn pause(&self, room_id: &str) -> Result<RoomSnapshot, StoreError> {
+        self.pause_at(room_id, now_ms())
+    }
+
+    /// Seeks to `position_ms`, clamped to `[0, duration_ms]`.
+    ///
+    /// The playing flag is preserved: seeking while playing keeps playing.
+    pub fn seek(&self, room_id: &str, position_ms: i64) -> Result<RoomSnapshot, StoreError> {
+        self.seek_at(room_id, position_ms, now_ms())
+    }
+
+    /// Deterministic variant of [`Self::play`] for tests.
+    pub(crate) fn play_at(&self, room_id: &str, now: i64) -> Result<RoomSnapshot, StoreError> {
+        let mut room = self
+            .rooms
+            .get_mut(room_id)
+            .ok_or_else(|| StoreError::NotFound(room_id.to_owned()))?;
+        room.require_media()?;
+
+        room.position_ms = room.position_at(now);
+        room.playing = true;
+        room.commit(now);
+
+        Ok(room.snapshot(room_id))
+    }
+
+    /// Deterministic variant of [`Self::pause`] for tests.
+    pub(crate) fn pause_at(&self, room_id: &str, now: i64) -> Result<RoomSnapshot, StoreError> {
+        let mut room = self
+            .rooms
+            .get_mut(room_id)
+            .ok_or_else(|| StoreError::NotFound(room_id.to_owned()))?;
+        room.require_media()?;
+
+        room.position_ms = room.position_at(now);
+        room.playing = false;
+        room.commit(now);
+
+        Ok(room.snapshot(room_id))
+    }
+
+    /// Deterministic variant of [`Self::seek`] for tests.
+    pub(crate) fn seek_at(
+        &self,
+        room_id: &str,
+        position_ms: i64,
+        now: i64,
+    ) -> Result<RoomSnapshot, StoreError> {
+        let mut room = self
+            .rooms
+            .get_mut(room_id)
+            .ok_or_else(|| StoreError::NotFound(room_id.to_owned()))?;
+        room.require_media()?;
+
+        let duration_ms = room.media_ref.as_ref().map_or(0, |media| media.duration_ms);
+        room.position_ms = clamp_position(position_ms, duration_ms);
+        room.commit(now);
 
         Ok(room.snapshot(room_id))
     }
@@ -174,6 +272,18 @@ fn validate_media(media_ref: &MediaRef) -> Result<(), StoreError> {
     }
 
     Ok(())
+}
+
+fn clamp_position(position_ms: i64, duration_ms: i64) -> i64 {
+    let position_ms = position_ms.max(0);
+
+    // `duration_ms == 0` means the duration is unknown (media/v1/media.proto),
+    // so only the lower bound applies.
+    if duration_ms > 0 {
+        position_ms.min(duration_ms)
+    } else {
+        position_ms
+    }
 }
 
 pub(crate) fn now_ms() -> i64 {
@@ -294,5 +404,173 @@ mod tests {
             store.close(&created.room_id).unwrap_err(),
             StoreError::NotFound(created.room_id)
         );
+    }
+
+    fn store_with_media() -> (RoomStore, RoomSnapshot) {
+        let store = RoomStore::default();
+        let created = store.create("guild", "channel", "host").unwrap();
+        let with_media = store.set_media(&created.room_id, hls_media()).unwrap();
+
+        (store, with_media)
+    }
+
+    #[test]
+    fn play_starts_from_the_stored_position_and_bumps_version() {
+        let (store, media_set) = store_with_media();
+        let now = media_set.updated_at_server_ms + 1_500;
+
+        let played = store.play_at(&media_set.room_id, now).expect("media set");
+
+        assert!(played.playing);
+        // The room was paused at 0, so a paused position does not advance.
+        assert_eq!(played.position_ms, 0);
+        assert_eq!(played.updated_at_server_ms, now);
+        assert_eq!(played.version, media_set.version + 1);
+        assert_eq!(store.get(&media_set.room_id).unwrap(), played);
+    }
+
+    #[test]
+    fn repeated_play_keeps_elapsed_position() {
+        let (store, media_set) = store_with_media();
+        let start = media_set.updated_at_server_ms;
+
+        let first = store
+            .play_at(&media_set.room_id, start)
+            .expect("first play");
+        let second = store
+            .play_at(&media_set.room_id, start + 2_500)
+            .expect("second play");
+
+        assert!(second.playing);
+        assert_eq!(second.position_ms, 2_500);
+        assert_eq!(second.updated_at_server_ms, start + 2_500);
+        assert_eq!(second.version, first.version + 1);
+    }
+
+    #[test]
+    fn pause_materializes_elapsed_time_and_clamps_to_duration() {
+        let (store, media_set) = store_with_media();
+        let start = media_set.updated_at_server_ms;
+        let duration_ms = media_set.media_ref.as_ref().unwrap().duration_ms;
+
+        store.play_at(&media_set.room_id, start).expect("play");
+        let paused = store
+            .pause_at(&media_set.room_id, start + duration_ms + 5)
+            .expect("pause");
+
+        assert!(!paused.playing);
+        assert_eq!(paused.position_ms, duration_ms);
+        assert_eq!(paused.updated_at_server_ms, start + duration_ms + 5);
+        assert_eq!(paused.version, media_set.version + 2);
+    }
+
+    #[test]
+    fn pause_while_paused_keeps_position() {
+        let (store, media_set) = store_with_media();
+
+        let paused = store
+            .pause_at(&media_set.room_id, media_set.updated_at_server_ms + 5_000)
+            .expect("pause");
+
+        assert!(!paused.playing);
+        assert_eq!(paused.position_ms, 0);
+        assert_eq!(paused.version, media_set.version + 1);
+    }
+
+    #[test]
+    fn seek_clamps_to_media_bounds() {
+        let (store, media_set) = store_with_media();
+        let now = media_set.updated_at_server_ms;
+        let duration_ms = media_set.media_ref.as_ref().unwrap().duration_ms;
+
+        let below = store
+            .seek_at(&media_set.room_id, -500, now)
+            .expect("seek below zero");
+        assert_eq!(below.position_ms, 0);
+        assert_eq!(below.version, media_set.version + 1);
+
+        let above = store
+            .seek_at(&media_set.room_id, duration_ms + 1, now)
+            .expect("seek past end");
+        assert_eq!(above.position_ms, duration_ms);
+        assert_eq!(above.version, media_set.version + 2);
+    }
+
+    #[test]
+    fn seek_with_unknown_duration_only_clamps_lower_bound() {
+        let store = RoomStore::default();
+        let created = store.create("guild", "channel", "host").unwrap();
+        let mut media = hls_media();
+        media.duration_ms = 0;
+        let media_set = store.set_media(&created.room_id, media).unwrap();
+
+        let above = store
+            .seek_at(
+                &media_set.room_id,
+                9_999_999,
+                media_set.updated_at_server_ms,
+            )
+            .expect("seek with unknown duration");
+        assert_eq!(above.position_ms, 9_999_999);
+        assert_eq!(above.version, media_set.version + 1);
+    }
+
+    #[test]
+    fn seek_preserves_playing_state() {
+        let (store, media_set) = store_with_media();
+        let start = media_set.updated_at_server_ms;
+
+        let played = store.play_at(&media_set.room_id, start).expect("play");
+        let seeked = store
+            .seek_at(&media_set.room_id, 60_000, start + 2_000)
+            .expect("seek while playing");
+
+        assert!(seeked.playing);
+        assert_eq!(seeked.position_ms, 60_000);
+        assert_eq!(seeked.updated_at_server_ms, start + 2_000);
+        assert_eq!(seeked.version, played.version + 1);
+
+        let paused = store
+            .pause_at(&media_set.room_id, start + 3_000)
+            .expect("pause");
+        assert_eq!(paused.position_ms, 61_000);
+
+        let seeked_paused = store
+            .seek_at(&media_set.room_id, 10_000, start + 4_000)
+            .expect("seek while paused");
+        assert!(!seeked_paused.playing);
+        assert_eq!(seeked_paused.position_ms, 10_000);
+        assert_eq!(seeked_paused.version, paused.version + 1);
+    }
+
+    #[test]
+    fn playback_without_media_is_rejected() {
+        let store = RoomStore::default();
+        let created = store.create("guild", "channel", "host").unwrap();
+
+        for result in [
+            store.play(&created.room_id),
+            store.pause(&created.room_id),
+            store.seek(&created.room_id, 1_000),
+        ] {
+            assert_eq!(result.unwrap_err(), StoreError::NoMedia);
+        }
+        assert_eq!(store.get(&created.room_id).unwrap(), created);
+    }
+
+    #[test]
+    fn playback_on_missing_room_is_not_found() {
+        let store = RoomStore::default();
+
+        for result in [
+            store.play("missing"),
+            store.pause("missing"),
+            store.seek("missing", 0),
+        ] {
+            assert_eq!(
+                result.unwrap_err(),
+                StoreError::NotFound("missing".to_owned())
+            );
+        }
     }
 }

@@ -1,8 +1,8 @@
 //! WebSocket endpoint (protocol v0.1).
 //!
 //! S3.3 implements the connection envelope and `join` with Ed25519 token
-//! verification. Playback mutations, broadcasting and participants follow in
-//! S3.4–S3.6.
+//! verification. S3.4 adds host-only `play`/`pause`/`seek` state mutations.
+//! Broadcasting and participants follow in S3.6–S3.7.
 
 use std::sync::Arc;
 
@@ -41,6 +41,13 @@ pub async fn handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Res
     ws.max_message_size(MAX_MESSAGE_BYTES + 1)
         .max_frame_size(MAX_MESSAGE_BYTES + 1)
         .on_upgrade(move |socket| serve(socket, store, auth))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PlaybackCommand {
+    Play,
+    Pause,
+    Seek,
 }
 
 #[derive(Debug, Clone)]
@@ -266,7 +273,15 @@ async fn handle_text(
             )
             .await
         }
-        "play" | "pause" | "seek" | "chat_send" | "reaction" => {
+        "play" | "pause" | "seek" => {
+            let command = match kind {
+                "play" => PlaybackCommand::Play,
+                "pause" => PlaybackCommand::Pause,
+                _ => PlaybackCommand::Seek,
+            };
+            handle_playback(socket, store, session, command, object, request_id).await
+        }
+        "chat_send" | "reaction" => {
             if session.is_none() {
                 return reject_unauthenticated(socket, request_id).await;
             }
@@ -374,6 +389,18 @@ async fn handle_join(
             close(socket, CLOSE_POLICY_VIOLATION, "bad join request").await;
             return false;
         }
+        Err(error) => {
+            tracing::error!(%error, "failed to load room state");
+            send_error(
+                socket,
+                "internal",
+                Some("room state is unavailable".to_owned()),
+                request_id,
+            )
+            .await;
+            close(socket, CLOSE_NORMAL, "internal error").await;
+            return false;
+        }
     };
 
     if !send_json(socket, &state_message(snapshot)).await {
@@ -393,6 +420,73 @@ async fn handle_join(
     });
 
     true
+}
+
+async fn handle_playback(
+    socket: &mut WebSocket,
+    store: &RoomStore,
+    session: &Option<Session>,
+    command: PlaybackCommand,
+    object: &serde_json::Map<String, Value>,
+    request_id: Option<i64>,
+) -> bool {
+    let Some(session) = session.as_ref() else {
+        return reject_unauthenticated(socket, request_id).await;
+    };
+
+    if session.role != Role::Host {
+        return send_error(
+            socket,
+            "not_host",
+            Some("only the host can control playback".to_owned()),
+            request_id,
+        )
+        .await;
+    }
+
+    let result = match command {
+        PlaybackCommand::Play => store.play(&session.room_id),
+        PlaybackCommand::Pause => store.pause(&session.room_id),
+        PlaybackCommand::Seek => {
+            let Some(position_ms) = object.get("position_ms").and_then(Value::as_i64) else {
+                return send_error(
+                    socket,
+                    "bad_message",
+                    Some("position_ms must be an integer".to_owned()),
+                    request_id,
+                )
+                .await;
+            };
+            store.seek(&session.room_id, position_ms)
+        }
+    };
+
+    match result {
+        Ok(snapshot) => send_json(socket, &state_message(snapshot)).await,
+        Err(StoreError::NoMedia) => {
+            send_error(
+                socket,
+                "no_media",
+                Some("media is not set in this room".to_owned()),
+                request_id,
+            )
+            .await
+        }
+        Err(StoreError::NotFound(room_id)) => {
+            send_error(
+                socket,
+                "room_closed",
+                Some(format!("room {room_id} is closed")),
+                request_id,
+            )
+            .await;
+            close(socket, CLOSE_NORMAL, "room closed").await;
+            false
+        }
+        Err(StoreError::InvalidArgument(message)) => {
+            send_error(socket, "bad_message", Some(message), request_id).await
+        }
+    }
 }
 
 async fn reject_unauthenticated(socket: &mut WebSocket, request_id: Option<i64>) -> bool {
