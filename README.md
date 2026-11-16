@@ -5,7 +5,7 @@ real-time і медіа-пайплайн.
 
 | Тека | Сервіс | Стан |
 | --- | --- | --- |
-| [`roomd/`](roomd/README.md) | Rust: стан кімнат, синхронізація відтворення, WebSocket fan-out | S3.2 готово, далі S3.3 |
+| [`roomd/`](roomd/README.md) | Rust: стан кімнат, синхронізація відтворення, WebSocket fan-out | S3.3 готово, далі S3.4 |
 | [`bot/`](bot/main.go) | Go: Discord-бот (discordgo) | смоук-бот підключений до Gateway |
 | `mediad/` | Rust: завантаження, HLS-транскодування, підписані URL | заблоковано рішенням D1 |
 
@@ -24,7 +24,7 @@ docker compose up -d --build
 
 | Сервіс | Порти | Перевірка |
 | --- | --- | --- |
-| `roomd` | `8080` (HTTP), `50051` (gRPC) | `curl http://localhost:8080/healthz` |
+| `roomd` | `8080` (HTTP + `/ws`), `50051` (gRPC) | `curl http://localhost:8080/healthz` |
 | `bot` | — | `docker compose logs -f bot` → `Bot is running` |
 
 ## Локальна розробка `roomd`

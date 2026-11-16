@@ -11,6 +11,11 @@ services:
       ROOMD_HTTP_ADDR: 0.0.0.0:8080
       ROOMD_LOG_FORMAT: json
       RUST_LOG: info
+      # Development key pair: `cargo run --example dev_token -- --print-public-key`.
+      # Replace it before exposing the service outside a dev machine.
+      ROOMD_JWT_PUBLIC_KEY: ${ROOMD_JWT_PUBLIC_KEY:-6kpsY-KcUgq-9VB7Ey7F-ZVHdq6-vnuSQh7qaRRG0iw}
+      ROOMD_JWT_ISSUER: ${ROOMD_JWT_ISSUER:-cinema-bot}
+      ROOMD_JWT_KEY_ID: ${ROOMD_JWT_KEY_ID:-dev-2026-11}
     ports:
       - "${ROOMD_HTTP_PORT:-8080}:8080"
       - "${ROOMD_GRPC_PORT:-50051}:50051"
