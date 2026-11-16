@@ -89,7 +89,9 @@ func textInteractionCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	if m.Content == "!ping" {
-		s.ChannelMessageSendReply(m.GuildID, "Pong!", m.Reference())
+		if _, err := s.ChannelMessageSendReply(m.ChannelID, "Pong!", m.Reference()); err != nil {
+			fmt.Println("error replying to message:", err)
+		}
 	}
 }
 
