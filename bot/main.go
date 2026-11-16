@@ -97,11 +97,14 @@ func textInteractionCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func normalizeToken(raw string) string {
-	token := strings.Trim(raw, `"'`)
+	token := strings.TrimSpace(raw)
+	token = strings.Trim(token, `"'`)
 	token = strings.TrimSpace(token)
 	if token == "" || token == "Bot" {
 		return ""
 	}
 	token = strings.TrimPrefix(token, "Bot ")
-	return token
+	token = strings.TrimSpace(token)
+	token = strings.Trim(token, `"'`)
+	return strings.TrimSpace(token)
 }
