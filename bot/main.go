@@ -2,7 +2,7 @@ package main
 
 import (
 	"arikawa-discord/bot/handlers"
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -10,21 +10,21 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	_ = godotenv.Load()
 	token := normalizeToken(os.Getenv("DISCORD_KEY"))
 	if token == "" {
-		fmt.Println("no given DISCORD_KEY")
-		return
+		log.Fatal("no given DISCORD_KEY")
 	}
 
 	guildID := strings.TrimSpace(os.Getenv("GUILD_ID"))
 
 	dg, err := discordgo.New("Bot " + token)
 	if err != nil {
-		fmt.Println("error while creating a session:", err)
-		return
+		log.Fatal("error while creating a session:", err)
 	}
 
 	dg.AddHandler(interactionCreate)
@@ -34,16 +34,14 @@ func main() {
 
 	err = dg.Open()
 	if err != nil {
-		fmt.Println("error while opening discord websocket:", err)
-		return
+		log.Fatal("error while opening discord websocket:", err)
 	}
 	defer dg.Close()
 
 	deadline := time.Now().Add(30 * time.Second)
 	for dg.State.User == nil {
 		if time.Now().After(deadline) {
-			fmt.Println("error: Discord session is not ready")
-			return
+			log.Fatal("error: Discord session is not ready")
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -63,11 +61,10 @@ func main() {
 
 	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, guildID, cmds)
 	if err != nil {
-		fmt.Println("error while creating slash command:", err)
-		return
+		log.Fatal("error while creating slash command:", err)
 	}
 
-	fmt.Println("Bot is running, press CTRL+C to exit")
+	log.Println("Bot is running, press CTRL+C to exit")
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGTERM, os.Interrupt)
@@ -84,7 +81,7 @@ func interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if handler, ok := handlers.CommandHandlers[cmd]; ok {
 		handler(s, i)
 	} else {
-		fmt.Println("Unknown slash command:", cmd)
+		log.Println("Unknown slash command:", cmd)
 	}
 }
 
@@ -96,7 +93,7 @@ func textInteractionCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	if m.Content == "!ping" {
 		if _, err := s.ChannelMessageSendReply(m.ChannelID, "Pong!", m.Reference()); err != nil {
-			fmt.Println("error replying to message:", err)
+			log.Println("error replying to message:", err)
 		}
 	}
 }
