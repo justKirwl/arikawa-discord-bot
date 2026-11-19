@@ -5,10 +5,18 @@
 //! `channel_id`, `user_id` and `media_id` values.
 
 pub mod auth;
+pub mod backpressure;
+pub mod chat;
 pub mod config;
+pub mod events;
 pub mod grpc;
 pub mod http;
+pub mod hub;
+pub mod idle;
+pub mod media_end;
+pub mod participants;
 pub mod pb;
+pub mod ratelimit;
 pub mod shutdown;
 pub mod state;
 pub mod telemetry;
@@ -25,6 +33,7 @@ use tracing::{info, warn};
 use crate::auth::JwtAuth;
 use crate::config::Config;
 use crate::http::AppState;
+use crate::hub::RoomHub;
 use crate::state::RoomStore;
 
 /// How long in-flight connections get to finish after a shutdown signal.
@@ -33,6 +42,7 @@ pub const SHUTDOWN_GRACE: Duration = Duration::from_secs(30);
 /// Binds both listeners, serves gRPC and HTTP, and drains on shutdown.
 pub async fn run(config: Config) -> anyhow::Result<()> {
     let store = Arc::new(RoomStore::default());
+    let hub = Arc::new(RoomHub::new());
     let jwt = match config.jwt_public_key.as_deref() {
         Some(public_key) => Some(Arc::new(
             JwtAuth::new(
@@ -47,7 +57,7 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
             None
         }
     };
-    let state = AppState::with_services(store.clone(), jwt);
+    let state = AppState::with_services(store.clone(), jwt, hub.clone());
 
     let grpc_listener = TcpListener::bind(config.grpc_addr)
         .await
@@ -65,9 +75,17 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     state.mark_ready();
 
+    let idle_task = idle::spawn_idle_sweeper(
+        store.clone(),
+        hub.clone(),
+        config.room_idle_timeout,
+        shutdown_rx.clone(),
+    );
+
     let mut grpc_task = tokio::spawn(grpc::serve(
         grpc_listener,
         store,
+        hub,
         shutdown::wait(shutdown_rx.clone()),
     ));
     let mut http_task = tokio::spawn(http::serve(
@@ -87,6 +105,7 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
     let drained = tokio::time::timeout(SHUTDOWN_GRACE, async {
         let _ = grpc_task.await;
         let _ = http_task.await;
+        let _ = idle_task.await;
     })
     .await;
 

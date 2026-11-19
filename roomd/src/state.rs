@@ -218,6 +218,11 @@ impl RoomStore {
         Ok(room.snapshot(room_id))
     }
 
+    /// Lists live room ids (used by the idle sweeper).
+    pub fn room_ids(&self) -> Vec<String> {
+        self.rooms.iter().map(|entry| entry.key().clone()).collect()
+    }
+
     pub fn len(&self) -> usize {
         self.rooms.len()
     }

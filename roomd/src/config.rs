@@ -1,5 +1,6 @@
 use std::env;
 use std::net::SocketAddr;
+use std::time::Duration;
 
 use thiserror::Error;
 
@@ -10,11 +11,13 @@ pub const ENV_LOG_FILTER: &str = "ROOMD_LOG_FILTER";
 pub const ENV_JWT_PUBLIC_KEY: &str = "ROOMD_JWT_PUBLIC_KEY";
 pub const ENV_JWT_ISSUER: &str = "ROOMD_JWT_ISSUER";
 pub const ENV_JWT_KEY_ID: &str = "ROOMD_JWT_KEY_ID";
+pub const ENV_ROOM_IDLE_TIMEOUT: &str = "ROOMD_ROOM_IDLE_TIMEOUT";
 
 pub const DEFAULT_GRPC_ADDR: &str = "0.0.0.0:50051";
 pub const DEFAULT_HTTP_ADDR: &str = "0.0.0.0:8080";
 pub const DEFAULT_LOG_FILTER: &str = "info";
 pub const DEFAULT_JWT_ISSUER: &str = "cinema-bot";
+pub const DEFAULT_ROOM_IDLE_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Runtime configuration, read from `ROOMD_*` environment variables.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,6 +37,9 @@ pub struct Config {
     pub jwt_issuer: Option<String>,
     /// Required JWT header `kid`; `None` accepts any key id.
     pub jwt_key_id: Option<String>,
+    /// How long an empty room is kept before the idle sweeper closes it.
+    /// Overridden by `ROOMD_ROOM_IDLE_TIMEOUT` (integer seconds).
+    pub room_idle_timeout: Duration,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +54,8 @@ pub enum ConfigError {
     InvalidAddr { key: &'static str, value: String },
     #[error("{key} must be one of: pretty, json; got {value:?}")]
     InvalidLogFormat { key: &'static str, value: String },
+    #[error("{key} must be an integer number of seconds, got {value:?}")]
+    InvalidRoomIdleTimeout { key: &'static str, value: String },
 }
 
 impl Config {
@@ -103,6 +111,20 @@ impl Config {
             .map(|value| value.trim().to_owned())
             .filter(|value| !value.is_empty());
 
+        let room_idle_timeout = match lookup(ENV_ROOM_IDLE_TIMEOUT) {
+            None => DEFAULT_ROOM_IDLE_TIMEOUT,
+            Some(raw) => {
+                let secs: u64 =
+                    raw.trim()
+                        .parse()
+                        .map_err(|_| ConfigError::InvalidRoomIdleTimeout {
+                            key: ENV_ROOM_IDLE_TIMEOUT,
+                            value: raw,
+                        })?;
+                Duration::from_secs(secs)
+            }
+        };
+
         Ok(Self {
             grpc_addr,
             http_addr,
@@ -111,6 +133,7 @@ impl Config {
             jwt_public_key,
             jwt_issuer,
             jwt_key_id,
+            room_idle_timeout,
         })
     }
 }
@@ -146,6 +169,7 @@ mod tests {
         assert_eq!(config.jwt_public_key, None);
         assert_eq!(config.jwt_issuer.as_deref(), Some(DEFAULT_JWT_ISSUER));
         assert_eq!(config.jwt_key_id, None);
+        assert_eq!(config.room_idle_timeout, DEFAULT_ROOM_IDLE_TIMEOUT);
     }
 
     #[test]
@@ -158,6 +182,7 @@ mod tests {
             (ENV_JWT_PUBLIC_KEY, "  key  "),
             (ENV_JWT_ISSUER, "cinema-bot-test"),
             (ENV_JWT_KEY_ID, " k-1 "),
+            (ENV_ROOM_IDLE_TIMEOUT, " 60 "),
         ]))
         .expect("overrides should be valid");
 
@@ -168,6 +193,7 @@ mod tests {
         assert_eq!(config.jwt_public_key.as_deref(), Some("key"));
         assert_eq!(config.jwt_issuer.as_deref(), Some("cinema-bot-test"));
         assert_eq!(config.jwt_key_id.as_deref(), Some("k-1"));
+        assert_eq!(config.room_idle_timeout, Duration::from_secs(60));
     }
 
     #[test]

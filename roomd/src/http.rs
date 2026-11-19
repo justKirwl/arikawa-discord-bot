@@ -15,14 +15,27 @@ use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 
 use crate::auth::JwtAuth;
+use crate::hub::RoomHub;
 use crate::state::RoomStore;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AppState {
     started_at: Instant,
     ready: Arc<AtomicBool>,
     store: Arc<RoomStore>,
+    hub: Arc<RoomHub>,
     jwt: Option<Arc<JwtAuth>>,
+}
+
+// Keep `Debug` without depending on `RoomHub` implementing it.
+impl std::fmt::Debug for AppState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AppState")
+            .field("started_at", &self.started_at)
+            .field("ready", &self.ready)
+            .field("store", &self.store)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Default for AppState {
@@ -34,20 +47,33 @@ impl Default for AppState {
 impl AppState {
     /// Test/health-only state without a configured JWT key.
     pub fn new() -> Self {
-        Self::with_services(Arc::new(RoomStore::default()), None)
+        Self::with_services(
+            Arc::new(RoomStore::default()),
+            None,
+            Arc::new(RoomHub::new()),
+        )
     }
 
-    pub fn with_services(store: Arc<RoomStore>, jwt: Option<Arc<JwtAuth>>) -> Self {
+    pub fn with_services(
+        store: Arc<RoomStore>,
+        jwt: Option<Arc<JwtAuth>>,
+        hub: Arc<RoomHub>,
+    ) -> Self {
         Self {
             started_at: Instant::now(),
             ready: Arc::new(AtomicBool::new(false)),
             store,
+            hub,
             jwt,
         }
     }
 
     pub fn store(&self) -> &Arc<RoomStore> {
         &self.store
+    }
+
+    pub fn hub(&self) -> &Arc<RoomHub> {
+        &self.hub
     }
 
     pub fn jwt(&self) -> Option<&Arc<JwtAuth>> {

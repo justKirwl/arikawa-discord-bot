@@ -10,6 +10,7 @@ use futures_util::{SinkExt, StreamExt};
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use roomd::auth::{JWT_LEEWAY_SECS, JwtAuth};
 use roomd::http::{self, AppState};
+use roomd::hub::RoomHub;
 use roomd::pb::media::v1::{AudioTrack, MediaKind, MediaRef, SubtitleTrack};
 use roomd::state::RoomStore;
 use roomd::ws::MAX_MESSAGE_BYTES;
@@ -82,7 +83,8 @@ fn token(seed: [u8; 32], room_id: &str, role: &str, exp_offset: i64) -> String {
 async fn start_server(store: Arc<RoomStore>) -> std::net::SocketAddr {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("listener");
     let addr = listener.local_addr().expect("bound address");
-    let state = AppState::with_services(store, Some(Arc::new(jwt_auth())));
+    let state =
+        AppState::with_services(store, Some(Arc::new(jwt_auth())), Arc::new(RoomHub::new()));
 
     tokio::spawn(http::serve(listener, state, std::future::pending()));
 
@@ -156,7 +158,11 @@ async fn join(socket: &mut Client, room_id: &str, role: &str) -> Value {
         json!({ "type": "join", "token": token(SEED, room_id, role, 120) }),
     )
     .await;
-    recv(socket).await
+    // Protocol §3.1: the joiner receives `state` first, then `participants`.
+    let state = recv(socket).await;
+    assert_eq!(state["type"], "state");
+    assert_eq!(recv(socket).await["type"], "participants");
+    state
 }
 
 #[tokio::test]
@@ -215,6 +221,9 @@ async fn join_sends_state_and_ping_gets_pong() {
         "https://cdn.example/sub.vtt"
     );
     assert_eq!(media["poster_url"], "https://cdn.example/poster.jpg");
+
+    // Protocol §3.1: `state` is followed by `participants` for the joiner.
+    assert_eq!(recv(&mut socket).await["type"], "participants");
 
     send(&mut socket, json!({ "type": "ping", "client_ts": 1234 })).await;
     let pong = recv(&mut socket).await;
@@ -335,6 +344,7 @@ async fn malformed_messages_keep_the_connection_open() {
     )
     .await;
     assert_eq!(recv(&mut socket).await["type"], "state");
+    assert_eq!(recv(&mut socket).await["type"], "participants");
 
     socket.send(Message::text("{")).await.expect("send");
     assert_eq!(recv(&mut socket).await["code"], "bad_message");
@@ -361,6 +371,7 @@ async fn binary_frames_close_with_1003() {
     )
     .await;
     assert_eq!(recv(&mut socket).await["type"], "state");
+    assert_eq!(recv(&mut socket).await["type"], "participants");
 
     socket
         .send(Message::binary(vec![1, 2, 3]))
@@ -382,6 +393,7 @@ async fn oversized_messages_close_with_1009() {
     )
     .await;
     assert_eq!(recv(&mut socket).await["type"], "state");
+    assert_eq!(recv(&mut socket).await["type"], "participants");
 
     socket
         .send(Message::text("x".repeat(MAX_MESSAGE_BYTES + 1)))
@@ -455,6 +467,7 @@ async fn host_play_pause_and_seek_bump_version() {
     assert_eq!(clamped_high["version"], 7);
     assert_eq!(clamped_high["position_ms"], 7_200_000);
 
+    // All seven rapid controls fit the §9 control burst of 10 (no sleep needed).
     send(&mut socket, json!({ "type": "play" })).await;
     let playing_again = recv(&mut socket).await;
     assert_eq!(playing_again["version"], 8);

@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use roomd::grpc;
+use roomd::hub::RoomHub;
 use roomd::pb::media::v1::{MediaKind, MediaRef};
 use roomd::pb::roomd::v1 as pb;
 use roomd::state::RoomStore;
@@ -16,6 +17,7 @@ async fn start_server() -> (String, tokio::task::JoinHandle<anyhow::Result<()>>)
     let server = tokio::spawn(grpc::serve(
         listener,
         Arc::new(RoomStore::default()),
+        Arc::new(RoomHub::new()),
         std::future::pending(),
     ));
 
