@@ -19,6 +19,7 @@ real-time і медіа-пайплайн.
 ```sh
 cp .env.example .env
 # DISCORD_KEY=<raw bot token, без префікса "Bot ">
+# PSQL_URL=<postgres DSN, наприклад postgres://user:pass@host:5432/cinema>
 docker compose up -d --build
 ```
 
