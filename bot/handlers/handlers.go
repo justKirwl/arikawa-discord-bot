@@ -50,7 +50,15 @@ func (h *BotHandler) HandleWatchList(s *discordgo.Session, i *discordgo.Interact
 		Color:       0x6aa84f,
 	}
 
-	s.ChannelMessageSendEmbedReply(i.ChannelID, embed, i.Message.MessageReference)
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{embed},
+		},
+	})
+	if err != nil {
+		fmt.Println("error responding to interaction:", err)
+	}
 }
 
 func (h *BotHandler) HandleQueue(s *discordgo.Session, i *discordgo.InteractionCreate) {
