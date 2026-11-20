@@ -2,6 +2,7 @@ package main
 
 import (
 	"arikawa-discord/bot/handlers"
+	"arikawa-discord/bot/repositories"
 	"log"
 	"os"
 	"os/signal"
@@ -27,7 +28,14 @@ func main() {
 		log.Fatal("error while creating a session:", err)
 	}
 
-	dg.AddHandler(interactionCreate)
+	client := ConnectToDatabase()
+
+	watchlistRepo := repositories.CreateWatchListRepo(client)
+
+	dbServices := repositories.MergeDatabaseServices(watchlistRepo)
+	botHandler := handlers.NewBotHandler(dbServices)
+
+	dg.AddHandler(botHandler.InteractionCreate)
 	dg.AddHandler(textInteractionCreate)
 
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentMessageContent
@@ -53,6 +61,13 @@ func main() {
 		{
 			Name:        "watchlist",
 			Description: "Watchlist here.",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:        "list",
+					Description: "List whole wished watchlist.",
+					Type:        discordgo.ApplicationCommandOptionSubCommand,
+				},
+			},
 		},
 		{
 			Name:        "queue",
@@ -69,20 +84,6 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGTERM, os.Interrupt)
 	<-sc
-}
-
-func interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if i.Type != discordgo.InteractionApplicationCommand {
-		return
-	}
-
-	cmd := i.ApplicationCommandData().Name
-
-	if handler, ok := handlers.CommandHandlers[cmd]; ok {
-		handler(s, i)
-	} else {
-		log.Println("Unknown slash command:", cmd)
-	}
 }
 
 func textInteractionCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
