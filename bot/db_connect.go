@@ -1,4 +1,4 @@
-package db_connect
+package main
 
 import (
 	"context"
@@ -11,9 +11,10 @@ import (
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func main() {
+func ConnectToDatabase() *ent.Client {
 	dsn := os.Getenv("PSQL_URL")
 	if dsn == "" {
 		log.Fatal("PSQL_URL environment variable is not set")
@@ -42,4 +43,5 @@ func main() {
 	}
 
 	log.Println("Successfully connected to Neon PostgreSQL!")
+	return client
 }

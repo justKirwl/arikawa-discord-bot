@@ -21,15 +21,6 @@ services:
       - "${ROOMD_GRPC_PORT:-50051}:50051"
     stop_grace_period: 35s
 
-  psql:
-    image: postgres:14.23
-    ports:
-      - "5432:5432"
-    env_file:
-      - .env
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
   bot:
     build:
       context: .
@@ -40,6 +31,3 @@ services:
       - roomd
     env_file:
       - .env
-
-volumes:
-  pgdata:
