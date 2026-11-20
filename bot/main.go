@@ -29,6 +29,7 @@ func main() {
 	}
 
 	client := ConnectToDatabase()
+	defer client.Close()
 
 	watchlistRepo := repositories.CreateWatchListRepo(client)
 
