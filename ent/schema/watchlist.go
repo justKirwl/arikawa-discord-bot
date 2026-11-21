@@ -18,7 +18,7 @@ type WatchList struct {
 func (WatchList) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("id").Unique().Immutable(),
-		field.Int64("user_id").Unique(),
+		field.String("user_id"),
 		field.Int64("title_id").Unique(), // TODO: add title_id foreign key after adding titles table
 		field.Time("added_at").Default(time.Now),
 	}

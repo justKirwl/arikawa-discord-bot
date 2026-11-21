@@ -20,7 +20,7 @@ func (Queue) Fields() []ent.Field {
 		field.Int("id"),
 		field.Int64("guild_id"),
 		field.Int64("title_id"), // TODO: add foreign key after creating titles table
-		field.Int64("added_by"),
+		field.String("added_by"),
 		field.Int("position"),
 		field.Time("added_at").Default(time.Now),
 	}
