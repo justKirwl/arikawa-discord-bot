@@ -52,6 +52,9 @@ jobs:
 
   bot:
     runs-on: ubuntu-latest
+    env:
+      DISCORD_KEY: ${{ secrets.DISCORD_KEY }}
+      PSQL_URL: ${{ secrets.PSQL_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -59,7 +62,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-
+      
       - name: Vet
         run: go vet ./...
 
