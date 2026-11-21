@@ -22,7 +22,7 @@ type Queue struct {
 	// TitleID holds the value of the "title_id" field.
 	TitleID int64 `json:"title_id,omitempty"`
 	// AddedBy holds the value of the "added_by" field.
-	AddedBy int64 `json:"added_by,omitempty"`
+	AddedBy string `json:"added_by,omitempty"`
 	// Position holds the value of the "position" field.
 	Position int `json:"position,omitempty"`
 	// AddedAt holds the value of the "added_at" field.
@@ -67,8 +67,10 @@ func (*Queue) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case queue.FieldID, queue.FieldGuildID, queue.FieldTitleID, queue.FieldAddedBy, queue.FieldPosition:
+		case queue.FieldID, queue.FieldGuildID, queue.FieldTitleID, queue.FieldPosition:
 			values[i] = new(sql.NullInt64)
+		case queue.FieldAddedBy:
+			values[i] = new(sql.NullString)
 		case queue.FieldAddedAt:
 			values[i] = new(sql.NullTime)
 		default:
@@ -105,10 +107,10 @@ func (_m *Queue) assignValues(columns []string, values []any) error {
 				_m.TitleID = value.Int64
 			}
 		case queue.FieldAddedBy:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field added_by", values[i])
 			} else if value.Valid {
-				_m.AddedBy = value.Int64
+				_m.AddedBy = value.String
 			}
 		case queue.FieldPosition:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -175,7 +177,7 @@ func (_m *Queue) String() string {
 	builder.WriteString(fmt.Sprintf("%v", _m.TitleID))
 	builder.WriteString(", ")
 	builder.WriteString("added_by=")
-	builder.WriteString(fmt.Sprintf("%v", _m.AddedBy))
+	builder.WriteString(_m.AddedBy)
 	builder.WriteString(", ")
 	builder.WriteString("position=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Position))

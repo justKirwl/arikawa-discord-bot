@@ -18,7 +18,7 @@ type WatchList struct {
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// UserID holds the value of the "user_id" field.
-	UserID int64 `json:"user_id,omitempty"`
+	UserID string `json:"user_id,omitempty"`
 	// TitleID holds the value of the "title_id" field.
 	TitleID int64 `json:"title_id,omitempty"`
 	// AddedAt holds the value of the "added_at" field.
@@ -52,8 +52,10 @@ func (*WatchList) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case watchlist.FieldID, watchlist.FieldUserID, watchlist.FieldTitleID:
+		case watchlist.FieldID, watchlist.FieldTitleID:
 			values[i] = new(sql.NullInt64)
+		case watchlist.FieldUserID:
+			values[i] = new(sql.NullString)
 		case watchlist.FieldAddedAt:
 			values[i] = new(sql.NullTime)
 		default:
@@ -78,10 +80,10 @@ func (_m *WatchList) assignValues(columns []string, values []any) error {
 			}
 			_m.ID = int(value.Int64)
 		case watchlist.FieldUserID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value.Valid {
-				_m.UserID = value.Int64
+				_m.UserID = value.String
 			}
 		case watchlist.FieldTitleID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -137,7 +139,7 @@ func (_m *WatchList) String() string {
 	builder.WriteString("WatchList(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("user_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
+	builder.WriteString(_m.UserID)
 	builder.WriteString(", ")
 	builder.WriteString("title_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TitleID))

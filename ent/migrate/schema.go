@@ -36,7 +36,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "guild_id", Type: field.TypeInt64},
 		{Name: "title_id", Type: field.TypeInt64},
-		{Name: "added_by", Type: field.TypeInt64},
+		{Name: "added_by", Type: field.TypeString},
 		{Name: "position", Type: field.TypeInt},
 		{Name: "added_at", Type: field.TypeTime},
 	}
@@ -49,6 +49,7 @@ var (
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "user_id", Type: field.TypeString},
 		{Name: "username", Type: field.TypeString, Size: 2147483647},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -63,13 +64,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "users_queues_users",
-				Columns:    []*schema.Column{UsersColumns[4]},
+				Columns:    []*schema.Column{UsersColumns[5]},
 				RefColumns: []*schema.Column{QueuesColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
 			{
 				Symbol:     "users_watch_lists_users",
-				Columns:    []*schema.Column{UsersColumns[5]},
+				Columns:    []*schema.Column{UsersColumns[6]},
 				RefColumns: []*schema.Column{WatchListsColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
@@ -78,7 +79,7 @@ var (
 	// WatchListsColumns holds the columns for the "watch_lists" table.
 	WatchListsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "user_id", Type: field.TypeInt64, Unique: true},
+		{Name: "user_id", Type: field.TypeString},
 		{Name: "title_id", Type: field.TypeInt64, Unique: true},
 		{Name: "added_at", Type: field.TypeTime},
 	}

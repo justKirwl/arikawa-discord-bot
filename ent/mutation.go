@@ -537,8 +537,7 @@ type QueueMutation struct {
 	addguild_id   *int64
 	title_id      *int64
 	addtitle_id   *int64
-	added_by      *int64
-	addadded_by   *int64
+	added_by      *string
 	position      *int
 	addposition   *int
 	added_at      *time.Time
@@ -771,13 +770,12 @@ func (m *QueueMutation) ResetTitleID() {
 }
 
 // SetAddedBy sets the "added_by" field.
-func (m *QueueMutation) SetAddedBy(i int64) {
-	m.added_by = &i
-	m.addadded_by = nil
+func (m *QueueMutation) SetAddedBy(s string) {
+	m.added_by = &s
 }
 
 // AddedBy returns the value of the "added_by" field in the mutation.
-func (m *QueueMutation) AddedBy() (r int64, exists bool) {
+func (m *QueueMutation) AddedBy() (r string, exists bool) {
 	v := m.added_by
 	if v == nil {
 		return
@@ -788,7 +786,7 @@ func (m *QueueMutation) AddedBy() (r int64, exists bool) {
 // OldAddedBy returns the old "added_by" field's value of the Queue entity.
 // If the Queue object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *QueueMutation) OldAddedBy(ctx context.Context) (v int64, err error) {
+func (m *QueueMutation) OldAddedBy(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldAddedBy is only allowed on UpdateOne operations")
 	}
@@ -802,28 +800,9 @@ func (m *QueueMutation) OldAddedBy(ctx context.Context) (v int64, err error) {
 	return oldValue.AddedBy, nil
 }
 
-// AddAddedBy adds i to the "added_by" field.
-func (m *QueueMutation) AddAddedBy(i int64) {
-	if m.addadded_by != nil {
-		*m.addadded_by += i
-	} else {
-		m.addadded_by = &i
-	}
-}
-
-// AddedAddedBy returns the value that was added to the "added_by" field in this mutation.
-func (m *QueueMutation) AddedAddedBy() (r int64, exists bool) {
-	v := m.addadded_by
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
 // ResetAddedBy resets all changes to the "added_by" field.
 func (m *QueueMutation) ResetAddedBy() {
 	m.added_by = nil
-	m.addadded_by = nil
 }
 
 // SetPosition sets the "position" field.
@@ -1137,7 +1116,7 @@ func (m *QueueMutation) SetField(name string, value ent.Value) error {
 		m.SetTitleID(v)
 		return nil
 	case queue.FieldAddedBy:
-		v, ok := value.(int64)
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -1171,9 +1150,6 @@ func (m *QueueMutation) AddedFields() []string {
 	if m.addtitle_id != nil {
 		fields = append(fields, queue.FieldTitleID)
 	}
-	if m.addadded_by != nil {
-		fields = append(fields, queue.FieldAddedBy)
-	}
 	if m.addposition != nil {
 		fields = append(fields, queue.FieldPosition)
 	}
@@ -1189,8 +1165,6 @@ func (m *QueueMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedGuildID()
 	case queue.FieldTitleID:
 		return m.AddedTitleID()
-	case queue.FieldAddedBy:
-		return m.AddedAddedBy()
 	case queue.FieldPosition:
 		return m.AddedPosition()
 	}
@@ -1215,13 +1189,6 @@ func (m *QueueMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddTitleID(v)
-		return nil
-	case queue.FieldAddedBy:
-		v, ok := value.(int64)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddAddedBy(v)
 		return nil
 	case queue.FieldPosition:
 		v, ok := value.(int)
@@ -1392,6 +1359,7 @@ type UserMutation struct {
 	op            Op
 	typ           string
 	id            *int64
+	user_id       *string
 	username      *string
 	created_at    *time.Time
 	updated_at    *time.Time
@@ -1503,6 +1471,42 @@ func (m *UserMutation) IDs(ctx context.Context) ([]int64, error) {
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *UserMutation) SetUserID(s string) {
+	m.user_id = &s
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *UserMutation) UserID() (r string, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *UserMutation) ResetUserID() {
+	m.user_id = nil
 }
 
 // SetUsername sets the "username" field.
@@ -1647,7 +1651,10 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 3)
+	fields := make([]string, 0, 4)
+	if m.user_id != nil {
+		fields = append(fields, user.FieldUserID)
+	}
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
 	}
@@ -1665,6 +1672,8 @@ func (m *UserMutation) Fields() []string {
 // schema.
 func (m *UserMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case user.FieldUserID:
+		return m.UserID()
 	case user.FieldUsername:
 		return m.Username()
 	case user.FieldCreatedAt:
@@ -1680,6 +1689,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case user.FieldUserID:
+		return m.OldUserID(ctx)
 	case user.FieldUsername:
 		return m.OldUsername(ctx)
 	case user.FieldCreatedAt:
@@ -1695,6 +1706,13 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 // type.
 func (m *UserMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case user.FieldUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
 	case user.FieldUsername:
 		v, ok := value.(string)
 		if !ok {
@@ -1765,6 +1783,9 @@ func (m *UserMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *UserMutation) ResetField(name string) error {
 	switch name {
+	case user.FieldUserID:
+		m.ResetUserID()
+		return nil
 	case user.FieldUsername:
 		m.ResetUsername()
 		return nil
@@ -1832,8 +1853,7 @@ type WatchListMutation struct {
 	op            Op
 	typ           string
 	id            *int
-	user_id       *int64
-	adduser_id    *int64
+	user_id       *string
 	title_id      *int64
 	addtitle_id   *int64
 	added_at      *time.Time
@@ -1951,13 +1971,12 @@ func (m *WatchListMutation) IDs(ctx context.Context) ([]int, error) {
 }
 
 // SetUserID sets the "user_id" field.
-func (m *WatchListMutation) SetUserID(i int64) {
-	m.user_id = &i
-	m.adduser_id = nil
+func (m *WatchListMutation) SetUserID(s string) {
+	m.user_id = &s
 }
 
 // UserID returns the value of the "user_id" field in the mutation.
-func (m *WatchListMutation) UserID() (r int64, exists bool) {
+func (m *WatchListMutation) UserID() (r string, exists bool) {
 	v := m.user_id
 	if v == nil {
 		return
@@ -1968,7 +1987,7 @@ func (m *WatchListMutation) UserID() (r int64, exists bool) {
 // OldUserID returns the old "user_id" field's value of the WatchList entity.
 // If the WatchList object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *WatchListMutation) OldUserID(ctx context.Context) (v int64, err error) {
+func (m *WatchListMutation) OldUserID(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
 	}
@@ -1982,28 +2001,9 @@ func (m *WatchListMutation) OldUserID(ctx context.Context) (v int64, err error) 
 	return oldValue.UserID, nil
 }
 
-// AddUserID adds i to the "user_id" field.
-func (m *WatchListMutation) AddUserID(i int64) {
-	if m.adduser_id != nil {
-		*m.adduser_id += i
-	} else {
-		m.adduser_id = &i
-	}
-}
-
-// AddedUserID returns the value that was added to the "user_id" field in this mutation.
-func (m *WatchListMutation) AddedUserID() (r int64, exists bool) {
-	v := m.adduser_id
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
 // ResetUserID resets all changes to the "user_id" field.
 func (m *WatchListMutation) ResetUserID() {
 	m.user_id = nil
-	m.adduser_id = nil
 }
 
 // SetTitleID sets the "title_id" field.
@@ -2235,7 +2235,7 @@ func (m *WatchListMutation) OldField(ctx context.Context, name string) (ent.Valu
 func (m *WatchListMutation) SetField(name string, value ent.Value) error {
 	switch name {
 	case watchlist.FieldUserID:
-		v, ok := value.(int64)
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -2263,9 +2263,6 @@ func (m *WatchListMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *WatchListMutation) AddedFields() []string {
 	var fields []string
-	if m.adduser_id != nil {
-		fields = append(fields, watchlist.FieldUserID)
-	}
 	if m.addtitle_id != nil {
 		fields = append(fields, watchlist.FieldTitleID)
 	}
@@ -2277,8 +2274,6 @@ func (m *WatchListMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *WatchListMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
-	case watchlist.FieldUserID:
-		return m.AddedUserID()
 	case watchlist.FieldTitleID:
 		return m.AddedTitleID()
 	}
@@ -2290,13 +2285,6 @@ func (m *WatchListMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *WatchListMutation) AddField(name string, value ent.Value) error {
 	switch name {
-	case watchlist.FieldUserID:
-		v, ok := value.(int64)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddUserID(v)
-		return nil
 	case watchlist.FieldTitleID:
 		v, ok := value.(int64)
 		if !ok {

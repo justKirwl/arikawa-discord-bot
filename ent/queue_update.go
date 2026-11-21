@@ -73,23 +73,16 @@ func (_u *QueueUpdate) AddTitleID(v int64) *QueueUpdate {
 }
 
 // SetAddedBy sets the "added_by" field.
-func (_u *QueueUpdate) SetAddedBy(v int64) *QueueUpdate {
-	_u.mutation.ResetAddedBy()
+func (_u *QueueUpdate) SetAddedBy(v string) *QueueUpdate {
 	_u.mutation.SetAddedBy(v)
 	return _u
 }
 
 // SetNillableAddedBy sets the "added_by" field if the given value is not nil.
-func (_u *QueueUpdate) SetNillableAddedBy(v *int64) *QueueUpdate {
+func (_u *QueueUpdate) SetNillableAddedBy(v *string) *QueueUpdate {
 	if v != nil {
 		_u.SetAddedBy(*v)
 	}
-	return _u
-}
-
-// AddAddedBy adds value to the "added_by" field.
-func (_u *QueueUpdate) AddAddedBy(v int64) *QueueUpdate {
-	_u.mutation.AddAddedBy(v)
 	return _u
 }
 
@@ -254,10 +247,7 @@ func (_u *QueueUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		_spec.AddField(queue.FieldTitleID, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.AddedBy(); ok {
-		_spec.SetField(queue.FieldAddedBy, field.TypeInt64, value)
-	}
-	if value, ok := _u.mutation.AddedAddedBy(); ok {
-		_spec.AddField(queue.FieldAddedBy, field.TypeInt64, value)
+		_spec.SetField(queue.FieldAddedBy, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Position(); ok {
 		_spec.SetField(queue.FieldPosition, field.TypeInt, value)
@@ -421,23 +411,16 @@ func (_u *QueueUpdateOne) AddTitleID(v int64) *QueueUpdateOne {
 }
 
 // SetAddedBy sets the "added_by" field.
-func (_u *QueueUpdateOne) SetAddedBy(v int64) *QueueUpdateOne {
-	_u.mutation.ResetAddedBy()
+func (_u *QueueUpdateOne) SetAddedBy(v string) *QueueUpdateOne {
 	_u.mutation.SetAddedBy(v)
 	return _u
 }
 
 // SetNillableAddedBy sets the "added_by" field if the given value is not nil.
-func (_u *QueueUpdateOne) SetNillableAddedBy(v *int64) *QueueUpdateOne {
+func (_u *QueueUpdateOne) SetNillableAddedBy(v *string) *QueueUpdateOne {
 	if v != nil {
 		_u.SetAddedBy(*v)
 	}
-	return _u
-}
-
-// AddAddedBy adds value to the "added_by" field.
-func (_u *QueueUpdateOne) AddAddedBy(v int64) *QueueUpdateOne {
-	_u.mutation.AddAddedBy(v)
 	return _u
 }
 
@@ -632,10 +615,7 @@ func (_u *QueueUpdateOne) sqlSave(ctx context.Context) (_node *Queue, err error)
 		_spec.AddField(queue.FieldTitleID, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.AddedBy(); ok {
-		_spec.SetField(queue.FieldAddedBy, field.TypeInt64, value)
-	}
-	if value, ok := _u.mutation.AddedAddedBy(); ok {
-		_spec.AddField(queue.FieldAddedBy, field.TypeInt64, value)
+		_spec.SetField(queue.FieldAddedBy, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Position(); ok {
 		_spec.SetField(queue.FieldPosition, field.TypeInt, value)

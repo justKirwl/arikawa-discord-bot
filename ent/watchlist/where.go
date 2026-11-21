@@ -56,7 +56,7 @@ func IDLTE(id int) predicate.WatchList {
 }
 
 // UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
-func UserID(v int64) predicate.WatchList {
+func UserID(v string) predicate.WatchList {
 	return predicate.WatchList(sql.FieldEQ(FieldUserID, v))
 }
 
@@ -71,43 +71,68 @@ func AddedAt(v time.Time) predicate.WatchList {
 }
 
 // UserIDEQ applies the EQ predicate on the "user_id" field.
-func UserIDEQ(v int64) predicate.WatchList {
+func UserIDEQ(v string) predicate.WatchList {
 	return predicate.WatchList(sql.FieldEQ(FieldUserID, v))
 }
 
 // UserIDNEQ applies the NEQ predicate on the "user_id" field.
-func UserIDNEQ(v int64) predicate.WatchList {
+func UserIDNEQ(v string) predicate.WatchList {
 	return predicate.WatchList(sql.FieldNEQ(FieldUserID, v))
 }
 
 // UserIDIn applies the In predicate on the "user_id" field.
-func UserIDIn(vs ...int64) predicate.WatchList {
+func UserIDIn(vs ...string) predicate.WatchList {
 	return predicate.WatchList(sql.FieldIn(FieldUserID, vs...))
 }
 
 // UserIDNotIn applies the NotIn predicate on the "user_id" field.
-func UserIDNotIn(vs ...int64) predicate.WatchList {
+func UserIDNotIn(vs ...string) predicate.WatchList {
 	return predicate.WatchList(sql.FieldNotIn(FieldUserID, vs...))
 }
 
 // UserIDGT applies the GT predicate on the "user_id" field.
-func UserIDGT(v int64) predicate.WatchList {
+func UserIDGT(v string) predicate.WatchList {
 	return predicate.WatchList(sql.FieldGT(FieldUserID, v))
 }
 
 // UserIDGTE applies the GTE predicate on the "user_id" field.
-func UserIDGTE(v int64) predicate.WatchList {
+func UserIDGTE(v string) predicate.WatchList {
 	return predicate.WatchList(sql.FieldGTE(FieldUserID, v))
 }
 
 // UserIDLT applies the LT predicate on the "user_id" field.
-func UserIDLT(v int64) predicate.WatchList {
+func UserIDLT(v string) predicate.WatchList {
 	return predicate.WatchList(sql.FieldLT(FieldUserID, v))
 }
 
 // UserIDLTE applies the LTE predicate on the "user_id" field.
-func UserIDLTE(v int64) predicate.WatchList {
+func UserIDLTE(v string) predicate.WatchList {
 	return predicate.WatchList(sql.FieldLTE(FieldUserID, v))
+}
+
+// UserIDContains applies the Contains predicate on the "user_id" field.
+func UserIDContains(v string) predicate.WatchList {
+	return predicate.WatchList(sql.FieldContains(FieldUserID, v))
+}
+
+// UserIDHasPrefix applies the HasPrefix predicate on the "user_id" field.
+func UserIDHasPrefix(v string) predicate.WatchList {
+	return predicate.WatchList(sql.FieldHasPrefix(FieldUserID, v))
+}
+
+// UserIDHasSuffix applies the HasSuffix predicate on the "user_id" field.
+func UserIDHasSuffix(v string) predicate.WatchList {
+	return predicate.WatchList(sql.FieldHasSuffix(FieldUserID, v))
+}
+
+// UserIDEqualFold applies the EqualFold predicate on the "user_id" field.
+func UserIDEqualFold(v string) predicate.WatchList {
+	return predicate.WatchList(sql.FieldEqualFold(FieldUserID, v))
+}
+
+// UserIDContainsFold applies the ContainsFold predicate on the "user_id" field.
+func UserIDContainsFold(v string) predicate.WatchList {
+	return predicate.WatchList(sql.FieldContainsFold(FieldUserID, v))
 }
 
 // TitleIDEQ applies the EQ predicate on the "title_id" field.

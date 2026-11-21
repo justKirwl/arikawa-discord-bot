@@ -30,23 +30,16 @@ func (_u *WatchListUpdate) Where(ps ...predicate.WatchList) *WatchListUpdate {
 }
 
 // SetUserID sets the "user_id" field.
-func (_u *WatchListUpdate) SetUserID(v int64) *WatchListUpdate {
-	_u.mutation.ResetUserID()
+func (_u *WatchListUpdate) SetUserID(v string) *WatchListUpdate {
 	_u.mutation.SetUserID(v)
 	return _u
 }
 
 // SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (_u *WatchListUpdate) SetNillableUserID(v *int64) *WatchListUpdate {
+func (_u *WatchListUpdate) SetNillableUserID(v *string) *WatchListUpdate {
 	if v != nil {
 		_u.SetUserID(*v)
 	}
-	return _u
-}
-
-// AddUserID adds value to the "user_id" field.
-func (_u *WatchListUpdate) AddUserID(v int64) *WatchListUpdate {
-	_u.mutation.AddUserID(v)
 	return _u
 }
 
@@ -163,10 +156,7 @@ func (_u *WatchListUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 	}
 	if value, ok := _u.mutation.UserID(); ok {
-		_spec.SetField(watchlist.FieldUserID, field.TypeInt64, value)
-	}
-	if value, ok := _u.mutation.AddedUserID(); ok {
-		_spec.AddField(watchlist.FieldUserID, field.TypeInt64, value)
+		_spec.SetField(watchlist.FieldUserID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.TitleID(); ok {
 		_spec.SetField(watchlist.FieldTitleID, field.TypeInt64, value)
@@ -243,23 +233,16 @@ type WatchListUpdateOne struct {
 }
 
 // SetUserID sets the "user_id" field.
-func (_u *WatchListUpdateOne) SetUserID(v int64) *WatchListUpdateOne {
-	_u.mutation.ResetUserID()
+func (_u *WatchListUpdateOne) SetUserID(v string) *WatchListUpdateOne {
 	_u.mutation.SetUserID(v)
 	return _u
 }
 
 // SetNillableUserID sets the "user_id" field if the given value is not nil.
-func (_u *WatchListUpdateOne) SetNillableUserID(v *int64) *WatchListUpdateOne {
+func (_u *WatchListUpdateOne) SetNillableUserID(v *string) *WatchListUpdateOne {
 	if v != nil {
 		_u.SetUserID(*v)
 	}
-	return _u
-}
-
-// AddUserID adds value to the "user_id" field.
-func (_u *WatchListUpdateOne) AddUserID(v int64) *WatchListUpdateOne {
-	_u.mutation.AddUserID(v)
 	return _u
 }
 
@@ -406,10 +389,7 @@ func (_u *WatchListUpdateOne) sqlSave(ctx context.Context) (_node *WatchList, er
 		}
 	}
 	if value, ok := _u.mutation.UserID(); ok {
-		_spec.SetField(watchlist.FieldUserID, field.TypeInt64, value)
-	}
-	if value, ok := _u.mutation.AddedUserID(); ok {
-		_spec.AddField(watchlist.FieldUserID, field.TypeInt64, value)
+		_spec.SetField(watchlist.FieldUserID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.TitleID(); ok {
 		_spec.SetField(watchlist.FieldTitleID, field.TypeInt64, value)

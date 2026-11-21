@@ -22,7 +22,7 @@ type WatchListCreate struct {
 }
 
 // SetUserID sets the "user_id" field.
-func (_c *WatchListCreate) SetUserID(v int64) *WatchListCreate {
+func (_c *WatchListCreate) SetUserID(v string) *WatchListCreate {
 	_c.mutation.SetUserID(v)
 	return _c
 }
@@ -153,7 +153,7 @@ func (_c *WatchListCreate) createSpec() (*WatchList, *sqlgraph.CreateSpec) {
 		_spec.ID.Value = id
 	}
 	if value, ok := _c.mutation.UserID(); ok {
-		_spec.SetField(watchlist.FieldUserID, field.TypeInt64, value)
+		_spec.SetField(watchlist.FieldUserID, field.TypeString, value)
 		_node.UserID = value
 	}
 	if value, ok := _c.mutation.TitleID(); ok {

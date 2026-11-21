@@ -66,7 +66,7 @@ func TitleID(v int64) predicate.Queue {
 }
 
 // AddedBy applies equality check predicate on the "added_by" field. It's identical to AddedByEQ.
-func AddedBy(v int64) predicate.Queue {
+func AddedBy(v string) predicate.Queue {
 	return predicate.Queue(sql.FieldEQ(FieldAddedBy, v))
 }
 
@@ -161,43 +161,68 @@ func TitleIDLTE(v int64) predicate.Queue {
 }
 
 // AddedByEQ applies the EQ predicate on the "added_by" field.
-func AddedByEQ(v int64) predicate.Queue {
+func AddedByEQ(v string) predicate.Queue {
 	return predicate.Queue(sql.FieldEQ(FieldAddedBy, v))
 }
 
 // AddedByNEQ applies the NEQ predicate on the "added_by" field.
-func AddedByNEQ(v int64) predicate.Queue {
+func AddedByNEQ(v string) predicate.Queue {
 	return predicate.Queue(sql.FieldNEQ(FieldAddedBy, v))
 }
 
 // AddedByIn applies the In predicate on the "added_by" field.
-func AddedByIn(vs ...int64) predicate.Queue {
+func AddedByIn(vs ...string) predicate.Queue {
 	return predicate.Queue(sql.FieldIn(FieldAddedBy, vs...))
 }
 
 // AddedByNotIn applies the NotIn predicate on the "added_by" field.
-func AddedByNotIn(vs ...int64) predicate.Queue {
+func AddedByNotIn(vs ...string) predicate.Queue {
 	return predicate.Queue(sql.FieldNotIn(FieldAddedBy, vs...))
 }
 
 // AddedByGT applies the GT predicate on the "added_by" field.
-func AddedByGT(v int64) predicate.Queue {
+func AddedByGT(v string) predicate.Queue {
 	return predicate.Queue(sql.FieldGT(FieldAddedBy, v))
 }
 
 // AddedByGTE applies the GTE predicate on the "added_by" field.
-func AddedByGTE(v int64) predicate.Queue {
+func AddedByGTE(v string) predicate.Queue {
 	return predicate.Queue(sql.FieldGTE(FieldAddedBy, v))
 }
 
 // AddedByLT applies the LT predicate on the "added_by" field.
-func AddedByLT(v int64) predicate.Queue {
+func AddedByLT(v string) predicate.Queue {
 	return predicate.Queue(sql.FieldLT(FieldAddedBy, v))
 }
 
 // AddedByLTE applies the LTE predicate on the "added_by" field.
-func AddedByLTE(v int64) predicate.Queue {
+func AddedByLTE(v string) predicate.Queue {
 	return predicate.Queue(sql.FieldLTE(FieldAddedBy, v))
+}
+
+// AddedByContains applies the Contains predicate on the "added_by" field.
+func AddedByContains(v string) predicate.Queue {
+	return predicate.Queue(sql.FieldContains(FieldAddedBy, v))
+}
+
+// AddedByHasPrefix applies the HasPrefix predicate on the "added_by" field.
+func AddedByHasPrefix(v string) predicate.Queue {
+	return predicate.Queue(sql.FieldHasPrefix(FieldAddedBy, v))
+}
+
+// AddedByHasSuffix applies the HasSuffix predicate on the "added_by" field.
+func AddedByHasSuffix(v string) predicate.Queue {
+	return predicate.Queue(sql.FieldHasSuffix(FieldAddedBy, v))
+}
+
+// AddedByEqualFold applies the EqualFold predicate on the "added_by" field.
+func AddedByEqualFold(v string) predicate.Queue {
+	return predicate.Queue(sql.FieldEqualFold(FieldAddedBy, v))
+}
+
+// AddedByContainsFold applies the ContainsFold predicate on the "added_by" field.
+func AddedByContainsFold(v string) predicate.Queue {
+	return predicate.Queue(sql.FieldContainsFold(FieldAddedBy, v))
 }
 
 // PositionEQ applies the EQ predicate on the "position" field.

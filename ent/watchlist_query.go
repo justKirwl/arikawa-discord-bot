@@ -299,7 +299,7 @@ func (_q *WatchListQuery) WithUsers(opts ...func(*UserQuery)) *WatchListQuery {
 // Example:
 //
 //	var v []struct {
-//		UserID int64 `json:"user_id,omitempty"`
+//		UserID string `json:"user_id,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
@@ -322,7 +322,7 @@ func (_q *WatchListQuery) GroupBy(field string, fields ...string) *WatchListGrou
 // Example:
 //
 //	var v []struct {
-//		UserID int64 `json:"user_id,omitempty"`
+//		UserID string `json:"user_id,omitempty"`
 //	}
 //
 //	client.WatchList.Query().

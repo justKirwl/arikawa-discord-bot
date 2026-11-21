@@ -35,7 +35,7 @@ func (_c *QueueCreate) SetTitleID(v int64) *QueueCreate {
 }
 
 // SetAddedBy sets the "added_by" field.
-func (_c *QueueCreate) SetAddedBy(v int64) *QueueCreate {
+func (_c *QueueCreate) SetAddedBy(v string) *QueueCreate {
 	_c.mutation.SetAddedBy(v)
 	return _c
 }
@@ -195,7 +195,7 @@ func (_c *QueueCreate) createSpec() (*Queue, *sqlgraph.CreateSpec) {
 		_node.TitleID = value
 	}
 	if value, ok := _c.mutation.AddedBy(); ok {
-		_spec.SetField(queue.FieldAddedBy, field.TypeInt64, value)
+		_spec.SetField(queue.FieldAddedBy, field.TypeString, value)
 		_node.AddedBy = value
 	}
 	if value, ok := _c.mutation.Position(); ok {
