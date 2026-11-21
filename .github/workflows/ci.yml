@@ -52,6 +52,7 @@ jobs:
 
   bot:
     runs-on: ubuntu-latest
+    environment: Base environment
     env:
       DISCORD_KEY: ${{ secrets.DISCORD_KEY }}
       PSQL_URL: ${{ secrets.PSQL_URL }}
