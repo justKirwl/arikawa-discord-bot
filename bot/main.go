@@ -65,7 +65,17 @@ func main() {
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Name:        "list",
-					Description: "List whole wished watchlist.",
+					Description: "List whole wished watchlist",
+					Type:        discordgo.ApplicationCommandOptionSubCommand,
+				},
+				{
+					Name:        "add",
+					Description: "Add movie/anime to watchlist",
+					Type:        discordgo.ApplicationCommandOptionSubCommand,
+				},
+				{
+					Name:        "remove",
+					Description: "Remove movie/anime from watchlist",
 					Type:        discordgo.ApplicationCommandOptionSubCommand,
 				},
 			},
@@ -73,6 +83,23 @@ func main() {
 		{
 			Name:        "queue",
 			Description: "Queue of downloading here.",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:        "add",
+					Description: "Add movie/anime to queue",
+					Type:        discordgo.ApplicationCommandOptionSubCommand,
+				},
+				{
+					Name:        "show",
+					Description: "Show the whole queue",
+					Type:        discordgo.ApplicationCommandOptionSubCommand,
+				},
+				{
+					Name:        "clear",
+					Description: "Clear the whole queue",
+					Type:        discordgo.ApplicationCommandOptionSubCommand,
+				},
+			},
 		}}
 
 	_, err = dg.ApplicationCommandBulkOverwrite(dg.State.User.ID, guildID, cmds)
