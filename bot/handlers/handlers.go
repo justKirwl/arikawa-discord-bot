@@ -28,7 +28,7 @@ func (h *BotHandler) HandleWatchList(s *discordgo.Session, i *discordgo.Interact
 
 	var sb strings.Builder
 
-	watchlist, fetchErr := h.db.Watchlist.List(ctx)
+	watchlist, fetchErr := h.db.Watchlist.List(ctx, i.User.ID)
 	if fetchErr != nil {
 		log.Println("Error in fetching watch list occured:", fetchErr)
 	}
