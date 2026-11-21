@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"testing"
+
+	"github.com/joho/godotenv"
+)
 
 func TestNormalizeToken(t *testing.T) {
 	tests := []struct {
@@ -32,4 +37,20 @@ func TestNormalizeToken(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEnvironmentValidation(t *testing.T) {
+	_ = godotenv.Load()
+
+	token := normalizeToken(os.Getenv("DISCORD_KEY"))
+	dbUrl := os.Getenv("PSQL_URL")
+
+	t.Run("env test", func(t *testing.T) {
+		if token == "" {
+			t.Error("DISCORD_KEY is empty or don't exists")
+		}
+		if dbUrl == "" {
+			t.Error("PSQL_URL is empty or don't exists")
+		}
+	})
 }
