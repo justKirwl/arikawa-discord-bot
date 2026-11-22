@@ -32,8 +32,9 @@ func main() {
 	defer client.Close()
 
 	watchlistRepo := repositories.CreateWatchListRepo(client)
+	userRepo := repositories.CreateUserRepo(client)
 
-	dbServices := repositories.MergeDatabaseServices(watchlistRepo)
+	dbServices := repositories.MergeDatabaseServices(userRepo, watchlistRepo)
 	botHandler := handlers.NewBotHandler(dbServices)
 
 	dg.AddHandler(botHandler.InteractionCreate)

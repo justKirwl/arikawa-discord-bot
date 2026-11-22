@@ -454,11 +454,11 @@ users ─── watchlist_items ───► titles
 
 **Власник:** Rust · **Залежить від:** S0 · **\~2–3 тижні** (паралельно з S1–S2)
 
-- [ ] S3.1 Каркас сервісу: конфіг, `tracing`, health-check, graceful shutdown
-- [ ] S3.2 gRPC-сервер: `CreateRoom`, `CloseRoom`, `GetRoomState`, `SetMedia`
-- [ ] S3.3 WebSocket: `join` з перевіркою токена (2.4), ролі
-- [ ] S3.4 Машина станів кімнати: `play`, `pause`, `seek`, версіонування стану
-- [ ] S3.5 `ping/pong` для оцінки зсуву годинника
+- [x] S3.1 Каркас сервісу: конфіг, `tracing`, health-check, graceful shutdown
+- [x] S3.2 gRPC-сервер: `CreateRoom`, `CloseRoom`, `GetRoomState`, `SetMedia`
+- [x] S3.3 WebSocket: `join` з перевіркою токена (2.4), ролі
+- [x] S3.4 Машина станів кімнати: `play`, `pause`, `seek`, версіонування стану
+- [x] S3.5 `ping/pong` для оцінки зсуву годинника
 - [x] S3.6 Розсилка `state` усім учасникам, `participants`
 - [x] S3.7 Реконнект, пізнє приєднання, видалення порожніх кімнат за таймаутом
 - [x] S3.8 `StreamRoomEvents` (включно з `MediaEnded`)
@@ -583,3 +583,4 @@ S0 ──┬─► S1 ─► S2 ──────────┐
 | 2026-11-19 | S3.8 | Rust | Реалізовано gRPC `StreamRoomEvents`, включно з подією `MediaEnded`, для автопереходу бота до наступного тайтлу. |
 | 2026-11-19 | S3.9 | Rust | Додано юніт-тести стану та інтеграційні тести з кількома симульованими WebSocket-клієнтами (111 тестів, усі зелені). |
 | 2026-11-19 | S3.10 | Rust | Реалізовано чат і реакції через WebSocket, антифлуд (token bucket) і backpressure для повільних клієнтів. |
+| 2026-11-22 | Реєстрація користувача (за запитом Go-розробника) | Go | `UserRepo.Ensure` (`bot/repositories/user.go`): створює рядок `users` при першій взаємодії та оновлює кеш `username`; виклик у `InteractionCreate` для кожної слеш-команди, user береться з `i.Member.User` у гільдії. Додано табличний тест `parseSnowflake`. Vet/build чисті; env-тести (`TestEnvironmentValidation`, `TestDatabaseConnection`) проходять лише в CI, де secrets виставлені змінними — локально без `.env` у CWD пакета вони падають (так задумано Go-розробником). Передано Go-розробнику баг: `bot/handlers/handlers.go:31` — `i.User.ID` у гільдії дає nil → panic бота. |

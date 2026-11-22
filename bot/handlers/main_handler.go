@@ -1,8 +1,11 @@
 package handlers
 
 import (
-	"arikawa-discord/bot/repositories"
+	"context"
 	"log"
+	"time"
+
+	"arikawa-discord/bot/repositories"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -29,6 +32,23 @@ func NewBotHandler(db *repositories.Repositories) *BotHandler {
 func (h *BotHandler) InteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if i.Type != discordgo.InteractionApplicationCommand {
 		return
+	}
+
+	// In a guild discordgo fills Member instead of User; in a DM the reverse.
+	u := i.User
+	if u == nil && i.Member != nil {
+		u = i.Member.User
+	}
+	if u == nil {
+		log.Println("interaction without user")
+		return
+	}
+
+	// Register the interacting user before any command touches the database.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, err := h.db.Users.Ensure(ctx, u.ID, u.Username); err != nil {
+		log.Println("Error registering user:", err)
 	}
 
 	cmd := i.ApplicationCommandData().Name
